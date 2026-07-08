@@ -2,7 +2,8 @@ import type {
     SkullKingBonusInput,
     SkullKingPlayerRoundInput,
     LootAlliance,
-    PlayerId
+    PlayerId,
+    SkullKingRoundInput
 } from "./types";
 
 // 베팅한 승수와 실제 이긴 승수가 같은지를 나타내는 함수
@@ -46,6 +47,20 @@ function calculateCaptureBonus(
     );
 }
 
+// 플레이어의 map을 미리 만들어 두는 함수
+// 플레이어를 찾을 때 유용하게 쓰여서 만듦
+function createPlayerMap(
+    players: SkullKingPlayerRoundInput[]
+): Map<PlayerId, SkullKingPlayerRoundInput> {
+    const playerMap = new Map<PlayerId, SkullKingPlayerRoundInput>();
+
+    for (const player of players) {
+        playerMap.set(player.playerId, player);
+    }
+
+    return playerMap;
+}
+
 // 약탈품 보너스를 계산하는 함수. 약탈품을 얻음으로서 생성된 두 명으로 이루어진 동맹에 대해
 // 두 명 모두 승수 맞추기를 성공하면 두 명 모두 20점을 얻게 됨
 function calculateLootBonuses(
@@ -54,6 +69,8 @@ function calculateLootBonuses(
 ): Map<PlayerId, number> {
     // <플레이어, 획득 점수> map을 저장하는 변수. 이것을 마지막에 return하게 됨
     const lootBonuses = new Map<PlayerId, number>(); 
+    // 플레이어 정보 map을 저장하는 변수
+    const playerMap = createPlayerMap(players);
     
     // lootBonuses를 <플레이어 id, 0>으로 초기화 함
     for (const player of players) {
@@ -62,15 +79,9 @@ function calculateLootBonuses(
 
     // alliences에 저장된 동맹 정보를 for문으로 순회함
     for (const alliance of alliances) {
-        // 플레이어들 중 동맹 정보에 있는 플레이어 아이디와 일치하는 플레이어를 player에 저장함
-        const player = players.find(
-            (p) => p.playerId === alliance.playerId
-        );
-        
-        // 같은 방법으로 partner에도 저장을 함
-        const partner = players.find(
-            (p) => p.playerId === alliance.partnerId
-        );
+        // playerMap에서 플레이어의 정보를 찾아 player, partner에 할당함
+        const player = playerMap.get(alliance.playerId);
+        const partner = playerMap.get(alliance.partnerId);
 
         // 두 명 다 못 찾았으면 넘어감
         if (!player || !partner) {
@@ -94,6 +105,74 @@ function calculateLootBonuses(
         }
     }
     
-    
     return lootBonuses;
+}
+
+// input 값이 범위에 맞는 input인지 확인하고 아닐경우 오류를 띄우는 함수
+// 검증할 내용
+// 1. round 검증
+//   1-1. round는 1 이상 10 이하여야 함
+// 2. 플레이어 검증
+//   2-1. 플레이어의 id는 unique해야 함
+//   2-2. bid는 0 이상 round 수 이하여야 함
+//   2-3. tricks는 0 이상 round 수 이하여야 함
+// 3. 동맹 검증
+//   3-1. 동맹은 최대 2개여야 함
+//   3-2. playerId가 실제 플레이어 목록에 존재해야 함
+//   3-3. partnerId가 실제 플에이어 목록에 존재해야 함
+//   3-4. playerId와 partnerId가 같지 않아야 함
+function validateRoundInput(
+    input : SkullKingRoundInput
+): void {
+    // 1-1. round는 1 이상 10 이하여야 함 -> 아닐 경우 오류!
+    if (input.round < 1 || input.round > 10) {
+        throw new Error("Invalid round");
+    }
+
+    // 플레이어의 id를 저장하는 변수
+    const playerIds = new Set<PlayerId>();
+    
+    // 모든 플레이어를 순회함
+    for (const player of input.players) {
+        // 2-1. 플레이어의 id는 unique해야 함 -> 중복되면 오류!
+        if (playerIds.has(player.playerId)) {
+            throw new Error("Duplicate playerId");
+        }
+
+        // 플레이어의 id를 저장해 둠
+        playerIds.add(player.playerId);
+
+        // 2-2. bid는 0 이상 round 수 이하여야 함 -> 아닐 경우 오류!
+        if (player.bid < 0 || player.bid > input.round) {
+            throw new Error("Invalid bid");
+        }
+
+        // 2-3. tricks는 0 이상 round 수 이하여야 함 -> 아닐 경우 오류!
+        if (player.tricks < 0 || player.tricks > input.round) {
+            throw new Error("Invalid tricks");
+        }
+    }
+
+    // 3-1. 동맹은 최대 2개여야 함 -> 아닐 경우 오류! 
+    if (input.lootAlliances.length > 2) {
+        throw new Error("Too many loot alliances");
+    }
+
+    // 모든 동맹을 순회함
+    for (const alliance of input.lootAlliances) {
+        // 3-2. playerId가 실제 플레이어 목록에 존재해야 함 -> 없을 경우 오류!
+        if (!playerIds.has(alliance.playerId)) {
+            throw new Error("Invalid loot alliance playerId");
+        }
+        
+        // 3-3. partnerId가 실제 플에이어 목록에 존재해야 함 -> 없을 경우 오류!
+        if (!playerIds.has(alliance.partnerId)) {
+            throw new Error("Invalid loot alliance partnerId");
+        }
+
+        // 3-4. playerId와 partnerId가 같지 않아야 함 -> 같을 경우 오류!
+        if (alliance.playerId === alliance.partnerId) {
+            throw new Error("Loot alliance cannot be self alliance");
+        }
+    }
 }
