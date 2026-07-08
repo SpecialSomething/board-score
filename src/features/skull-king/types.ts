@@ -1,29 +1,34 @@
+// string을 PlayerId로 저장해둠(나중에 자주 사용해서)
 export type PlayerId = string;
 
+// 보너스 점수를 저장하는 타입. 이 점수는 bid와 tricks가 일치해야 받을 수 있음
 export type SkullKingBonusInput = {
-  standardFourteens: number;
-  blackFourteens: number;
-  mermaidsCapturedByPirate: number;
-  piratesCapturedBySkullKing: number;
-  skullKingCapturedByMermaid: boolean;
+  standardFourteens: number;            // 일반 색깔(보라, 초록, 노랑)의 14 개수
+  blackFourteens: number;               // 검정색의 14 개수
+  mermaidsCapturedByPirate: number;     // 해적으로 잡은 인어 개수
+  piratesCapturedBySkullKing: number;   // 스컬킹으로 잡은 해적 개수
+  skullKingCapturedByMermaid: boolean;  // 인어로 잡은 스컬킹 여부(스컬킹이 하나라서 boolean을 사용)
 };
 
+// 각 라운드에 대한 각 플레이어의 정보를 저장하는 타입
 export type SkullKingPlayerRoundInput = {
-  playerId: PlayerId;
-  bid: number;
-  tricks: number;
-  bonuses: SkullKingBonusInput;
+  playerId: PlayerId;           // 플레이어의 아이디(혹은 이름)
+  bid: number;                  // 각 라운드에서 몇 승을 할 지 베팅하는 승수를 저장하는 숫자
+  tricks: number;               // 각 라운드에서 몇 승을 했는지를 나타내는 승수를 저장하는 숫자
+  bonuses: SkullKingBonusInput; // 보너스 점수를 저장
 };
 
+// 약탈품 카드를 얻었을 때 약탈품을 낸 사람과 가져간 사람이 동맹이 되고, 그 동맹을 나타내는 타입
 export type LootAlliance = {
   playerId: PlayerId;
   partnerId: PlayerId;
 };
 
+// 각 라운드에 대한 정보들을 저장해두는 타입
 export type SkullKingRoundInput = {
-  round: number;
-  players: SkullKingPlayerRoundInput[];
-  lootAlliances: LootAlliance[];
+  round: number;                        // 각 라운드가 몇 라운드인지 나타내는 숫자
+  players: SkullKingPlayerRoundInput[]; // 모든 플레이어들의 라운드 정보를 저장해두는 배열
+  lootAlliances: LootAlliance[];        // 각 라운드의 모든 동맹을 나타내는 배열
 };
 
 export type SkullKingPlayerRoundResult = {
