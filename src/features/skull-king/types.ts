@@ -31,17 +31,19 @@ export type SkullKingRoundInput = {
   lootAlliances: LootAlliance[];        // 각 라운드의 모든 동맹을 나타내는 배열
 };
 
+// 플레이어마다 각 라운드 결과를 저장해두는 타입
 export type SkullKingPlayerRoundResult = {
-  playerId: PlayerId;
-  bidSuccess: boolean;
-  bidScore: number;
-  captureBonus: number;
-  lootBonus: number;
-  totalBonus: number;
-  roundScore: number;
+  playerId: PlayerId;     // 플레이어 아이디(혹은 이름)
+  bidSuccess: boolean;    // 승수 예측 성공 여부
+  bidScore: number;       // 승수 예측으로 얻은 점수
+  captureBonus: number;   // 카드 획득으로 얻은 보너스 점수
+  lootBonus: number;      // 약탈품 카드로 얻은 보너스 점수
+  totalBonus: number;     // 총 보너스 점수의 합
+  roundScore: number;     // 이번 라운드의 모든 점수의 합
 };
 
+// 각 라운드의 모든 플레이어의 결과를 저장해두는 타입
 export type SkullKingRoundResult = {
-  round: number;
-  players: SkullKingPlayerRoundResult[];
+  round: number;                          // 라운드 수(1 ~ 10)
+  players: SkullKingPlayerRoundResult[];  // 각 플레이어의 라운드 결과
 };

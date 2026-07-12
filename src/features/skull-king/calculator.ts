@@ -3,7 +3,9 @@ import type {
     SkullKingPlayerRoundInput,
     LootAlliance,
     PlayerId,
-    SkullKingRoundInput
+    SkullKingRoundInput,
+    SkullKingPlayerRoundResult,
+    SkullKingRoundResult
 } from "./types";
 
 // 베팅한 승수와 실제 이긴 승수가 같은지를 나타내는 함수
@@ -15,22 +17,22 @@ function isBidSuccess(
 
 // 베팅한 승수에 따라 점수를 계산하는 함수
 function calculateBidScore(
-    round: number,
-    bid: number,
-    tricks: number
+    round : number,
+    player: SkullKingPlayerRoundInput
 ): number {
-    if (bid === 0) {    // 0승을 걸었을 경우
-        return tricks === 0 ? round * 10 : round * -10; 
+    if (player.bid === 0) {    // 0승을 걸었을 경우
+        return player.tricks === 0 ? round * 10 : round * -10; 
         // 맞추면 round 수 * 10점, 틀릴경우 round 수 * -10점을 함
     }
     
     // 이하는 0승이 아닌 승수를 걸었을 경우
-    if (bid === tricks) {   // 승수를 맞췄을 경우
-        return bid * 20;    // 걸었던 승수 * 20점을 함
+    if (player.bid === player.tricks) {   // 승수를 맞췄을 경우
+        return player.bid * 20;    // 걸었던 승수 * 20점을 함
     }
 
     // 승수를 틀렸을 경우 
-    return Math.abs(bid - tricks) * -10;    // 걸었던 승수와 실제 이긴 승수의 차이 * -10점을 함 
+    // 걸었던 승수와 실제 이긴 승수의 차이 * -10점을 함 
+    return Math.abs(player.bid - player.tricks) * -10;    
 }
 
 // 획득한 보너스(약탈품 제외)를 계산하는 함수. 
@@ -175,4 +177,61 @@ function validateRoundInput(
             throw new Error("Loot alliance cannot be self alliance");
         }
     }
+}
+
+// 실제 각 라운드 점수를 계산하는 계산기
+export function calculateSkullKingRound(
+    input : SkullKingRoundInput
+): SkullKingRoundResult {
+    // input이 올바른지 확인
+    validateRoundInput(input);
+
+    // 현재 라운드로 초기화
+    const round = input.round;
+
+    // 이번 라운드의 약탈품 보너스 점수 계산
+    const lootbonuses : Map<PlayerId, number> = calculateLootBonuses(
+        input.players,
+        input.lootAlliances
+    );
+
+    // 모든 플레이어를 순회하며 계산하여 return 형식에 맞춰 만듦
+    // () => {}는 함수로써 기능을 하고,
+    // map() 함수는 괄호 안의 것들을 모아 리스트로 만들어 줌
+    const players : SkullKingPlayerRoundResult[] = input.players.map((player) => {
+        // 플레이어의 아이디 저장
+        const playerId : PlayerId = player.playerId;
+
+        // 승수 예측 성공 여부 저장
+        const bidSuccess : boolean = isBidSuccess(player);
+        
+        // 승수 예측에 따른 점수 계산 및 저장
+        const bidScore : number = calculateBidScore(round, player);
+        
+        // 보너스 획득 점수 계산 및 저장
+        // 승수 예측 성공시에만 점수를 얻음
+        const captureBonus : number = bidSuccess ? 
+        calculateCaptureBonus(player.bonuses) : 
+        0;
+
+        // 약탈품 보너스 점수 저장
+        const lootBonus : number = lootbonuses.get(player.playerId) ?? 0;
+        
+        // 최종 보너스 점수 계산 및 저장
+        const totalBonus : number = captureBonus + lootBonus;
+
+        // 최종 라운드 점수 계산 및 저장
+        const roundScore : number = bidScore + totalBonus;
+
+        return {
+            playerId,
+            bidSuccess,
+            bidScore,
+            captureBonus,
+            lootBonus,
+            totalBonus,
+            roundScore
+        }
+    });
+    return {round, players};
 }
