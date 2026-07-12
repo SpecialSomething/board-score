@@ -91,7 +91,7 @@ describe("calculateSkullKingRound", () => {
             expect(player.roundScore).toBe(50);
         });
 
-        it("0 비드를 맞히면 라운드당 10점을 얻는다", () => {
+        it("0 비드에 실패하면 라운드당 10점을 감점한다", () => {
             const input : SkullKingRoundInput = {
                 round : 5,
                 players: [
