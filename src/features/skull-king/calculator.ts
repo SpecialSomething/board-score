@@ -199,6 +199,7 @@ export function calculateSkullKingRound(
     // () => {}는 함수로써 기능을 하고,
     // map() 함수는 괄호 안의 것들을 모아 리스트로 만들어 줌
     const players : SkullKingPlayerRoundResult[] = input.players.map((player) => {
+
         // 플레이어의 아이디 저장
         const playerId : PlayerId = player.playerId;
 
@@ -224,6 +225,7 @@ export function calculateSkullKingRound(
         const roundScore : number = bidScore + totalBonus;
 
         return {
+            round,
             playerId,
             bidSuccess,
             bidScore,

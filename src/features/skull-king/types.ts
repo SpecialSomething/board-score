@@ -33,6 +33,7 @@ export type SkullKingRoundInput = {
 
 // 플레이어마다 각 라운드 결과를 저장해두는 타입
 export type SkullKingPlayerRoundResult = {
+  round : number;         // 라운드 수
   playerId: PlayerId;     // 플레이어 아이디(혹은 이름)
   bidSuccess: boolean;    // 승수 예측 성공 여부
   bidScore: number;       // 승수 예측으로 얻은 점수
@@ -46,4 +47,21 @@ export type SkullKingPlayerRoundResult = {
 export type SkullKingRoundResult = {
   round: number;                          // 라운드 수(1 ~ 10)
   players: SkullKingPlayerRoundResult[];  // 각 플레이어의 라운드 결과
+};
+
+// 한 게임의 모든 라운드에 대한 인풋을 저장해두는 타입
+export type SkullKingGameInput = {
+  rounds: SkullKingRoundInput[]; 
+};
+
+// 한 게임에서 한 플레이어의 모든 라운드 결과를 저장해두는 타입
+export type SkullKingGamePlayerResult = {
+  playerId: PlayerId;
+  roundResults: SkullKingPlayerRoundResult[];
+  totalScore: number;
+};
+
+// 한 게임의 결과를 저장해두는 타입
+export type SkullKingGameResult = {
+  players: SkullKingGamePlayerResult[];  
 };
