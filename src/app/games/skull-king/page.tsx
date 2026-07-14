@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import type {
   LootAlliance,
+  Player,
   SkullKingRoundInput,
   SkullKingRoundResult,
 } from "@/features/skull-king/types";
@@ -17,7 +18,8 @@ import RoundForm, {
 import ScoreBoard from "@/features/skull-king/components/ScoreBoard";
 
 import { MAX_ROUND } from "@/features/skull-king/constants";
-import { Playwrite_ID } from "next/font/google";
+
+import GameSetup from "@/features/skull-king/components/GameSetup";
 
 const EMPTY_BONUSES = {
     standardFourteensCount: 0,
@@ -27,48 +29,8 @@ const EMPTY_BONUSES = {
     skullKingCapturedByMermaid: false, 
 }
 
-const initialPlayers: RoundPlayer[] = [
-  {
-    player: {
-      id: "player-a",
-      name: "택민",
-    },
-    value: {
-      playerId: "player-a",
-      bid: 0,
-      tricks: 0,
-      bonuses: {
-        standardFourteensCount: 0,
-        blackFourteenCaptured: false,
-        mermaidsCapturedByPirate: 0,
-        piratesCapturedBySkullKing: 0,
-        skullKingCapturedByMermaid: false,
-      },
-    },
-  },
-  {
-    player: {
-      id: "player-b",
-      name: "친구",
-    },
-    value: {
-      playerId: "player-b",
-      bid: 0,
-      tricks: 0,
-      bonuses: {
-        standardFourteensCount: 0,
-        blackFourteenCaptured: false,
-        mermaidsCapturedByPirate: 0,
-        piratesCapturedBySkullKing: 0,
-        skullKingCapturedByMermaid: false,
-      },
-    },
-  },
-];
-
 export default function SkullKingPage() {
-  const [players, setPlayers] =
-    useState<RoundPlayer[]>(initialPlayers);
+  const [players, setPlayers] = useState<RoundPlayer[]>([]);
 
   const [isGameFinished, setIsGameFinished] = useState(false);
 
@@ -77,6 +39,8 @@ export default function SkullKingPage() {
   const [roundResults, setRoundResults] = useState<SkullKingRoundResult[]>([]);
 
   const [lootAlliances, setLootAlliances] = useState<LootAlliance[]>([]);
+
+  const [isGameStarted, setIsGameStarted] = useState(false);
 
   const latestResult = roundResults[roundResults.length - 1];
 
@@ -112,6 +76,27 @@ export default function SkullKingPage() {
             bonuses: EMPTY_BONUSES,
         },
     }));
+  }
+
+  function handleStartGame(newPlayers: Player[]) {
+    const roundPlayers: RoundPlayer[] = newPlayers.map((player) => ({
+        player,
+        value: {
+            playerId: player.id,
+            bid: 0,
+            tricks: 0,
+            bonuses: {
+                ...EMPTY_BONUSES,
+            },
+        },
+    }));
+
+    setPlayers(roundPlayers);
+    setCurrentRound(1);
+    setRoundResults([]);
+    setLootAlliances([]);
+    setIsGameFinished(false);
+    setIsGameStarted(true);
   }
 
   function handleSubmit() {
@@ -155,6 +140,15 @@ export default function SkullKingPage() {
             skullKingPirate: player.bonuses.piratesCapturedBySkullKing,
             mermaidSkullKing: player.bonuses.skullKingCapturedByMermaid,
         }))
+    );
+  }
+
+
+  if (!isGameStarted) {
+    return(
+        <main>
+            <GameSetup onStart={handleStartGame}/>
+        </main>
     );
   }
 

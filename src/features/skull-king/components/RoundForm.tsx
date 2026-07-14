@@ -6,7 +6,6 @@ import LootAllianceForm from "./LootAllianceForm";
 
 import type {
   LootAlliance,
-  PlayerId,
   Player,
   SkullKingPlayerRoundInput,
 } from "../types";
