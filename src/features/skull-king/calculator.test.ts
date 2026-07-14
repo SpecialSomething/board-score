@@ -10,8 +10,8 @@ function createBonuses(
     overrides: Partial<SkullKingBonusInput> = {}
 ): SkullKingBonusInput {
     return {
-        standardFourteens: 0,
-        blackFourteens: 0,
+        standardFourteensCount: 0,
+        blackFourteenCaptured: false,
         mermaidsCapturedByPirate: 0,
         piratesCapturedBySkullKing: 0,
         skullKingCapturedByMermaid: false,
@@ -120,8 +120,8 @@ describe("calculateSkullKingRound", () => {
                         bid: 2,
                         tricks: 2,
                         bonuses: createBonuses({
-                            standardFourteens: 1,               // 10
-                            blackFourteens: 1,                  // 20
+                            standardFourteensCount: 1,               // 10
+                            blackFourteenCaptured: true,                  // 20
                             mermaidsCapturedByPirate: 1,        // 20
                             piratesCapturedBySkullKing: 1,      // 30
                             skullKingCapturedByMermaid: true,   // 40
@@ -147,7 +147,7 @@ describe("calculateSkullKingRound", () => {
                         bid: 2,
                         tricks: 1,
                         bonuses: createBonuses({
-                            standardFourteens: 1,               
+                            standardFourteensCount: 1,               
                             skullKingCapturedByMermaid: true, 
                         }),
                     }),
@@ -377,6 +377,86 @@ describe("calculateSkullKingRound", () => {
             expect(() => calculateSkullKingRound(input)).toThrow(
                 "Loot alliance cannot be self alliance"
             );
+        });
+
+        it("일반색 14 카드 개수가 최대치를 초과하면 오류를 발생시킨다", () => {
+            const input : SkullKingRoundInput = {
+                round : 5,
+                players: [
+                    createPlayer({
+                        bid: 2,
+                        tricks: 1,
+                        bonuses: createBonuses({
+                            standardFourteensCount: 4,
+                        }),
+                    }),
+                ],
+                lootAlliances: [],
+            };
+
+            expect(() => calculateSkullKingRound(input)).toThrow(
+                "Invalid standard fourteen count"
+            )
+        });
+
+        it("일반색 14 카드 개수가 음수이면 오류를 발생시킨다", () => {
+            const input : SkullKingRoundInput = {
+                round : 5,
+                players: [
+                    createPlayer({
+                        bid: 2,
+                        tricks: 1,
+                        bonuses: createBonuses({
+                            standardFourteensCount: -1,
+                        }),
+                    }),
+                ],
+                lootAlliances: [],
+            };
+
+            expect(() => calculateSkullKingRound(input)).toThrow(
+                "Invalid standard fourteen count"
+            )
+        });
+
+        it("포획한 인어 수가 최대치를 초과하면 오류를 발생시킨다", () => {
+            const input : SkullKingRoundInput = {
+                round : 5,
+                players: [
+                    createPlayer({
+                        bid: 2,
+                        tricks: 1,
+                        bonuses: createBonuses({
+                            mermaidsCapturedByPirate: 3,
+                        }),
+                    }),
+                ],
+                lootAlliances: [],
+            };
+
+            expect(() => calculateSkullKingRound(input)).toThrow(
+                "Invalid captured mermaid count"
+            )
+        });
+
+        it("포획한 해적 수가 최대치를 초과하면 오류를 발생시킨다", () => {
+            const input : SkullKingRoundInput = {
+                round : 5,
+                players: [
+                    createPlayer({
+                        bid: 2,
+                        tricks: 1,
+                        bonuses: createBonuses({
+                            piratesCapturedBySkullKing: 7,
+                        }),
+                    }),
+                ],
+                lootAlliances: [],
+            };
+
+            expect(() => calculateSkullKingRound(input)).toThrow(
+                "Invalid captured pirate count"
+            )
         });
     });
 });

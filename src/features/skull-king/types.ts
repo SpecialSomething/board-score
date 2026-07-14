@@ -3,8 +3,8 @@ export type PlayerId = string;
 
 // 보너스 점수를 저장하는 타입. 이 점수는 bid와 tricks가 일치해야 받을 수 있음
 export type SkullKingBonusInput = {
-  standardFourteens: number;            // 일반 색깔(보라, 초록, 노랑)의 14 개수
-  blackFourteens: number;               // 검정색의 14 개수
+  standardFourteensCount: number;       // 일반 색깔(보라, 초록, 노랑)의 14 개수
+  blackFourteenCaptured: boolean;       // 검정색의 14 획득 여부
   mermaidsCapturedByPirate: number;     // 해적으로 잡은 인어 개수
   piratesCapturedBySkullKing: number;   // 스컬킹으로 잡은 해적 개수
   skullKingCapturedByMermaid: boolean;  // 인어로 잡은 스컬킹 여부(스컬킹이 하나라서 boolean을 사용)
@@ -64,4 +64,9 @@ export type SkullKingGamePlayerResult = {
 // 한 게임의 결과를 저장해두는 타입
 export type SkullKingGameResult = {
   players: SkullKingGamePlayerResult[];  
+};
+
+export type Player = {
+  id: PlayerId;   // 플레이어를 식별할 아이디
+  name: string;   // 실제 화면에 보여줄 이름
 };

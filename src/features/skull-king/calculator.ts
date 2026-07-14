@@ -8,6 +8,24 @@ import type {
     SkullKingRoundResult
 } from "./types";
 
+import {
+  BID_POINT,
+  BID_PENALTY,
+  ZERO_BID_POINT,
+  STANDARD_FOURTEEN_BONUS,
+  BLACK_FOURTEEN_BONUS,
+  MERMAID_CAPTURE_BONUS,
+  PIRATE_CAPTURE_BONUS,
+  SKULL_KING_CAPTURE_BONUS,
+  LOOT_ALLIANCE_BONUS,
+  MIN_ROUND,
+  MAX_ROUND,
+  MAX_STANDARD_FOURTEENS,
+  MAX_MERMAIDS_CAPTURED_BY_PIRATE,
+  MAX_PIRATES_CAPTURED_BY_SKULL_KING,
+  MAX_LOOT_ALLIANCES,
+} from "./constants";
+
 // 베팅한 승수와 실제 이긴 승수가 같은지를 나타내는 함수
 function isBidSuccess(
     player: SkullKingPlayerRoundInput
@@ -21,18 +39,20 @@ function calculateBidScore(
     player: SkullKingPlayerRoundInput
 ): number {
     if (player.bid === 0) {    // 0승을 걸었을 경우
-        return player.tricks === 0 ? round * 10 : round * -10; 
+        return player.tricks === 0 
+        ? round * ZERO_BID_POINT 
+        : round * -ZERO_BID_POINT; 
         // 맞추면 round 수 * 10점, 틀릴경우 round 수 * -10점을 함
     }
     
     // 이하는 0승이 아닌 승수를 걸었을 경우
     if (player.bid === player.tricks) {   // 승수를 맞췄을 경우
-        return player.bid * 20;    // 걸었던 승수 * 20점을 함
+        return player.bid * BID_POINT;    // 걸었던 승수 * 20점을 함
     }
 
     // 승수를 틀렸을 경우 
     // 걸었던 승수와 실제 이긴 승수의 차이 * -10점을 함 
-    return Math.abs(player.bid - player.tricks) * -10;    
+    return Math.abs(player.bid - player.tricks) * -BID_PENALTY;    
 }
 
 // 획득한 보너스(약탈품 제외)를 계산하는 함수. 
@@ -41,11 +61,11 @@ function calculateCaptureBonus(
     bonuses : SkullKingBonusInput
 ): number {
     return (
-        bonuses.standardFourteens * 10 +                // 일반 색깔(보라, 노랑, 초록) 14 개수 하나당 10점
-        bonuses.blackFourteens * 20 +                   // 검정색 14를 얻을 경우 20점
-        bonuses.mermaidsCapturedByPirate * 20 +         // 해적으로 인어를 잡을 경우 하나당 20점
-        bonuses.piratesCapturedBySkullKing * 30 +       // 스컬킹으로 해적을 잡을 경우 하나당 30점
-        (bonuses.skullKingCapturedByMermaid ? 40 : 0)   // 인어로 스컬킹을 잡을 경우 40점
+        bonuses.standardFourteensCount * STANDARD_FOURTEEN_BONUS +          // 일반 색깔(보라, 노랑, 초록) 14 개수 하나당 10점
+        (bonuses.blackFourteenCaptured ? BLACK_FOURTEEN_BONUS : 0) +        // 검정색 14를 얻을 경우 20점
+        bonuses.mermaidsCapturedByPirate * MERMAID_CAPTURE_BONUS +          // 해적으로 인어를 잡을 경우 하나당 20점
+        bonuses.piratesCapturedBySkullKing * PIRATE_CAPTURE_BONUS +         // 스컬킹으로 해적을 잡을 경우 하나당 30점
+        (bonuses.skullKingCapturedByMermaid ? SKULL_KING_CAPTURE_BONUS : 0) // 인어로 스컬킹을 잡을 경우 40점
     );
 }
 
@@ -95,14 +115,14 @@ function calculateLootBonuses(
             // 둘 다 맞추기를 성공했으면 lootBonuses에 20점을 더함
             lootBonuses.set(
                 player.playerId,
-                (lootBonuses.get(player.playerId) ?? 0) + 20    
+                (lootBonuses.get(player.playerId) ?? 0) + LOOT_ALLIANCE_BONUS    
                 // (a ?? 0) 문법은 맨 처음 0으로 초기화 했지만
                 // 일반적으로 typescript에서 이 사실을 모르기 때문에
                 // a가 몇인지 모르면 0으로 생각하라는 문법임
             );
             lootBonuses.set(
                 partner.playerId,
-                (lootBonuses.get(partner.playerId) ?? 0) + 20
+                (lootBonuses.get(partner.playerId) ?? 0) + LOOT_ALLIANCE_BONUS
             );
         }
     }
@@ -123,11 +143,15 @@ function calculateLootBonuses(
 //   3-2. playerId가 실제 플레이어 목록에 존재해야 함
 //   3-3. partnerId가 실제 플에이어 목록에 존재해야 함
 //   3-4. playerId와 partnerId가 같지 않아야 함
+// 4. 보너스 검증
+//   4-1. 일반 색깔 14는 0개 이상 3개 이하여야 함
+//   4-2. 인어 획득 개수는 0개 이상 2개 이하여야 함
+//   4-3. 해적 획득 개수는 0개 이상 6개 이하(티그리스 포함)여야 함
 function validateRoundInput(
     input : SkullKingRoundInput
 ): void {
     // 1-1. round는 1 이상 10 이하여야 함 -> 아닐 경우 오류!
-    if (input.round < 1 || input.round > 10) {
+    if (input.round < MIN_ROUND || input.round > MAX_ROUND) {
         throw new Error("Invalid round");
     }
 
@@ -153,10 +177,33 @@ function validateRoundInput(
         if (player.tricks < 0 || player.tricks > input.round) {
             throw new Error("Invalid tricks");
         }
+
+        // 플레이어의 보너스 점수들을 저장해 둠
+        const bonuses = player.bonuses;
+        //   4-1. 일반 색깔 14는 0개 이상 3개 이하여야 함
+        if (bonuses.standardFourteensCount < 0 ||
+            bonuses.standardFourteensCount > MAX_STANDARD_FOURTEENS
+        ) {
+            throw new Error("Invalid standard fourteen count");
+        }
+
+        //   4-2. 인어 획득 개수는 0개 이상 2개 이하여야 함
+        if (bonuses.mermaidsCapturedByPirate < 0 ||
+            bonuses.mermaidsCapturedByPirate > MAX_MERMAIDS_CAPTURED_BY_PIRATE
+        ) {
+            throw new Error("Invalid captured mermaid count");
+        }
+
+        //   4-3. 해적 획득 개수는 0개 이상 6개 이하(티그리스 포함)여야 함
+        if (bonuses.piratesCapturedBySkullKing < 0 ||
+            bonuses.piratesCapturedBySkullKing > MAX_PIRATES_CAPTURED_BY_SKULL_KING
+        ) {
+            throw new Error("Invalid captured pirate count");
+        }
     }
 
     // 3-1. 동맹은 최대 2개여야 함 -> 아닐 경우 오류! 
-    if (input.lootAlliances.length > 2) {
+    if (input.lootAlliances.length > MAX_LOOT_ALLIANCES) {
         throw new Error("Too many loot alliances");
     }
 

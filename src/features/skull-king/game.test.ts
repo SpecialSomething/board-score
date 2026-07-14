@@ -12,8 +12,8 @@ function createBonuses(
     overrides: Partial<SkullKingBonusInput> = {}
 ): SkullKingBonusInput {
     return {
-        standardFourteens: 0,
-        blackFourteens: 0,
+        standardFourteensCount: 0,
+        blackFourteenCaptured: false,
         mermaidsCapturedByPirate: 0,
         piratesCapturedBySkullKing: 0,
         skullKingCapturedByMermaid: false,
