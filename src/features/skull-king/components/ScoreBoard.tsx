@@ -13,14 +13,14 @@ export default function ScoreBoard({ players, result }: ScoreBoardProps) {
   }
 
   return (
-    <section className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+    <section className="rounded-2xl border border-board-border bg-board-surface p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
       <h2 className="text-xl font-semibold">{result.round}라운드 결과</h2>
 
       <div className="mt-4 flex flex-col gap-3">
         {result.players.map((playerResult) => (
           <article
             key={playerResult.playerId}
-            className="rounded-xl bg-[#f7f7f7] p-3"
+            className="rounded-xl bg-board-bg p-3"
           >
             <div className="flex items-center justify-between gap-4">
               <h3 className="text-lg font-semibold">
@@ -31,7 +31,7 @@ export default function ScoreBoard({ players, result }: ScoreBoardProps) {
                 {playerResult.roundScore}점
               </strong>
             </div>
-            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-[#767676]">
+            <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-board-muted">
               <div className="contents">
                 <dt>예측</dt>
                 <dd className="text-right">

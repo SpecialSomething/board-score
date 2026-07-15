@@ -44,7 +44,7 @@ export default function RoundForm({
   }
 
   return (
-    <div className="flex w-full flex-col gap-5 rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+    <div className="flex w-full flex-col gap-5 rounded-2xl border border-board-border bg-board-surface p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
       <header>
         <p className="text-sm font-medium leading-normal">Round {round}</p>
         <h1 className="text-xl font-semibold leading-normal">카드 {round}장</h1>
@@ -74,7 +74,7 @@ export default function RoundForm({
         type="button"
         disabled={disabled}
         onClick={onSubmit}
-        className="h-11 w-full rounded-xl bg-[#767676] text-base font-semibold text-white transition-colors hover:bg-[#666666] disabled:cursor-not-allowed disabled:bg-[#dddddd] disabled:text-[#989898]"
+        className="h-11 w-full rounded-xl bg-board-primary text-base font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text"
       >
         이번 라운드 저장
       </button>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 
@@ -21,7 +21,7 @@ import { calculateSkullKingRound } from "@/features/skull-king/calculator";
 
 import RoundForm from "@/features/skull-king/components/RoundForm";
 
-import { RoundPlayer } from "@/features/skull-king/types";
+import type { RoundPlayer } from "@/features/skull-king/types";
 
 import { MAX_ROUND } from "@/features/skull-king/constants";
 
@@ -29,12 +29,14 @@ import GameSetup from "@/features/skull-king/components/GameSetup";
 
 import RoundHistory from "@/features/skull-king/components/RoundHistory";
 
+import Header from "@/components/Header";
+
 const EMPTY_BONUSES = {
     standardFourteensCount: 0,
     blackFourteenCaptured: false,
     mermaidsCapturedByPirate: 0,
     piratesCapturedBySkullKing: 0,
-    skullKingCapturedByMermaid: false, 
+    skullKingCapturedByMermaid: false,
 }
 
 export default function SkullKingPage() {
@@ -56,36 +58,36 @@ export default function SkullKingPage() {
 
   const totalScores = new Map<string, number>();
 
-  
+
 
   useEffect(() => {
     const searchParams = new URLSearchParams(
       window.location.search
     );
-  
+
     const shouldStartNewGame =
       searchParams.get("new") === "1";
-  
+
     if (shouldStartNewGame) {
       // 기존 저장 게임을 불러오지 않고 설정 화면을 표시한다.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsStorageLoaded(true);
       return;
     }
-  
+
     const savedGame = loadSkullKingGame();
-  
+
     if (savedGame) {
       // localStorage의 진행 중 게임을 최초 한 번 복원합니다.
       setPlayers(savedGame.players);
-  
+
       setCurrentRound(savedGame.currentRound);
       setRoundResults(savedGame.roundResults);
       setLootAlliances(savedGame.lootAlliances);
       setIsGameStarted(savedGame.isGameStarted);
       setIsGameFinished(savedGame.isGameFinished);
     }
-  
+
     setIsStorageLoaded(true);
   }, []);
 
@@ -121,7 +123,7 @@ export default function SkullKingPage() {
       );
     }
   }
-  
+
   const standings = players.map((roundPlayer) => ({
     playerId: roundPlayer.player.id,
     playerName: roundPlayer.player.name,
@@ -167,7 +169,7 @@ export default function SkullKingPage() {
   function handlePlayAgain() {
     clearSkullKingGame();
 
-    setPlayers((currentPlayers) => 
+    setPlayers((currentPlayers) =>
       resetPlayerInputs(currentPlayers)
     );
     setCurrentRound(1);
@@ -193,7 +195,7 @@ export default function SkullKingPage() {
         lootAlliances,
     };
 
-    
+
 
     const result = calculateSkullKingRound(input);
 
@@ -230,7 +232,7 @@ export default function SkullKingPage() {
 
   if (!isStorageLoaded) {
     return (
-      <main className="min-h-screen bg-[#f7f7f7] p-6">
+      <main className="min-h-screen bg-board-bg p-6">
         <p className="mx-auto w-full max-w-[393px]">게임을 불러오는 중입니다...</p>
       </main>
     );
@@ -238,15 +240,50 @@ export default function SkullKingPage() {
 
   if (!isGameStarted) {
     return (
-      <main>
-        <GameSetup onStart={handleStartGame} />
-      </main>
+      <div className="min-h-screen bg-board-bg">
+        <main className="mx-auto w-full max-w-[393px] p-6">
+          <Header />
+
+          <GameSetup
+            onStart={handleStartGame}
+          />
+        </main>
+      </div>
+    );
+  }
+
+  if (isGameFinished) {
+    return (
+      <div className="min-h-screen bg-board-bg">
+        <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6">
+          <Header />
+          <h1 className="text-[32px] leading-[39px] font-bold tracking-[-0.02em] text-board-text">게임 종료</h1>
+          <h2 className="text-xl leading-6 font-bold text-board-text">축하합니다!</h2>
+          <ol className="flex flex-col text-xl leading-6 text-board-text">
+            {standings.map((player, index) => (
+              <li key={player.playerId} className={index === 0 ? "font-bold" : index < 3 ? "font-semibold" : "font-normal text-board-muted"}>
+                {index + 1}. {player.playerName} {player.totalScore}점
+              </li>
+            ))}
+          </ol>
+          <button type="button" onClick={handlePlayAgain} className="h-[35px] w-full rounded-xl bg-board-primary px-4 text-base font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary">한 판 더?</button>
+          <button type="button" onClick={handleGoHome} className="h-[35px] w-full rounded-xl bg-board-primary px-4 text-base font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary">홈으로</button>
+          <RoundHistory
+            players={players.map(
+              (roundPlayer) => roundPlayer.player
+            )}
+            results={roundResults}
+          />
+        </main>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7]">
-      <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-black">
+    <div className="min-h-screen bg-board-bg">
+      <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-board-text">
+        <Header />
+
         {!isGameFinished && (
           <RoundForm
             round={currentRound}
@@ -259,7 +296,7 @@ export default function SkullKingPage() {
         )}
 
         {roundResults.length > 0 && (
-          <section className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+          <section className="rounded-2xl border border-board-border bg-board-surface p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
             <h2 className="text-xl font-semibold">
               {isGameFinished ? "최종 순위" : "현재 순위"}
             </h2>
@@ -268,7 +305,7 @@ export default function SkullKingPage() {
               {standings.map((player, index) => (
                 <li
                   key={player.playerId}
-                  className="flex items-center justify-between rounded-xl bg-[#f7f7f7] px-3 py-2.5"
+                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${index === 0 ? "bg-board-primary-soft" : "bg-board-secondary"}`}
                 >
                   <span className="font-semibold">
                     {index + 1}. {player.playerName}
@@ -283,15 +320,15 @@ export default function SkullKingPage() {
                 <button
                   type="button"
                   onClick={handlePlayAgain}
-                  className="mt-4 h-11 w-full rounded-xl bg-[#767676] font-semibold text-white"
+                  className="mt-4 h-11 w-full rounded-xl bg-board-primary font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary"
                 >
                   한 판 더?
                 </button>
-              
+
                 <button
                   type="button"
                   onClick={handleGoHome}
-                  className="mt-4 h-11 w-full rounded-xl bg-[#767676] font-semibold text-white"
+                  className="mt-4 h-11 w-full rounded-xl bg-board-primary font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary"
                 >
                   홈으로
                 </button>

@@ -26,8 +26,8 @@ function BinarySelector({ value, onChange, disabled }: BinarySelectorProps) {
         aria-pressed={!value}
         disabled={disabled}
         onClick={() => onChange(false)}
-        className={`h-[35px] w-[70px] rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-[#eeeeee] disabled:text-[#a6a6a6] ${
-          !value ? "bg-[#767676] text-white" : "bg-[#dddddd] text-black"
+        className={`h-[35px] w-[70px] rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text ${
+          !value ? "bg-board-primary text-white" : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
         }`}
       >
         미획득
@@ -37,8 +37,8 @@ function BinarySelector({ value, onChange, disabled }: BinarySelectorProps) {
         aria-pressed={value}
         disabled={disabled}
         onClick={() => onChange(true)}
-        className={`h-[35px] w-[70px] rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-[#eeeeee] disabled:text-[#a6a6a6] ${
-          value ? "bg-[#767676] text-white" : "bg-[#dddddd] text-black"
+        className={`h-[35px] w-[70px] rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text ${
+          value ? "bg-board-primary text-white" : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
         }`}
       >
         획득
@@ -54,7 +54,7 @@ export default function BonusSection({
 }: BonusSectionProps) {
   return (
     <div className="flex flex-col gap-4 pt-3">
-      <section className="flex flex-col gap-3 rounded-xl bg-[#e8e8e8] p-3">
+      <section className="flex flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
         <h4 className="text-base font-semibold">14 카드</h4>
         <NumberSelector
           label="일반색 14"
@@ -83,7 +83,7 @@ export default function BonusSection({
         </div>
       </section>
 
-      <section className="flex flex-col gap-3 rounded-xl bg-[#e8e8e8] p-3">
+      <section className="flex flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
         <h4 className="text-base font-semibold">특수 포획</h4>
         <NumberSelector
           label="해적 → 인어"

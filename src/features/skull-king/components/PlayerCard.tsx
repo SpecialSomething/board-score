@@ -28,7 +28,7 @@ export default function PlayerCard({
   }
 
   return (
-    <section className="flex w-full flex-col gap-3 rounded-xl border border-[#e5e7eb] bg-white p-3">
+    <section className="flex w-full flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
       <h3 className="text-lg font-semibold leading-normal">{playerName}</h3>
 
       <NumberSelector
@@ -62,7 +62,7 @@ export default function PlayerCard({
         disabled={disabled}
         aria-expanded={isBonusOpen}
         onClick={() => setIsBonusOpen((open) => !open)}
-        className="flex min-h-[39px] w-full items-center justify-between p-2.5 text-base font-semibold disabled:cursor-not-allowed disabled:text-[#a6a6a6]"
+        className="flex min-h-[39px] w-full items-center justify-between p-2.5 text-base font-semibold disabled:cursor-not-allowed disabled:text-board-disabled-text"
       >
         <span>보너스 입력</span>
         <span aria-hidden="true">{isBonusOpen ? "▲" : "▼"}</span>

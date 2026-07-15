@@ -49,13 +49,13 @@ export default function LootAllianceForm({
   return (
     <fieldset
       disabled={disabled}
-      className="flex w-full flex-col gap-3 rounded-xl bg-[#e8e8e8] p-3"
+      className="flex w-full flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3"
     >
       <legend className="sr-only">약탈품 동맹</legend>
       <h3 className="text-base font-semibold">약탈품 동맹</h3>
 
       {value.length === 0 && (
-        <p className="text-base font-semibold text-[#989898]">
+        <p className="text-base font-semibold text-board-muted">
           등록된 동맹 없음
         </p>
       )}
@@ -63,7 +63,7 @@ export default function LootAllianceForm({
       {value.map((alliance, index) => (
         <section
           key={index}
-          className="flex flex-col gap-3 rounded-xl bg-white p-3"
+          className="flex flex-col gap-3 rounded-xl bg-board-surface p-3"
         >
           <div className="flex items-center justify-between">
             <h4 className="font-semibold">약탈품 {index + 1}</h4>
@@ -77,7 +77,7 @@ export default function LootAllianceForm({
                   )
                 )
               }
-              className="rounded-lg px-2 py-1 text-sm font-semibold text-red-600 disabled:text-[#a6a6a6]"
+              className="rounded-lg px-2 py-1 text-sm font-semibold text-board-danger disabled:text-board-disabled-text"
             >
               삭제
             </button>
@@ -91,7 +91,7 @@ export default function LootAllianceForm({
               onChange={(event) =>
                 updateAlliance(index, "playerId", event.target.value)
               }
-              className="mt-1 h-10 w-full rounded-xl bg-[#f7f7f7] px-3 text-base disabled:text-[#a6a6a6]"
+              className="mt-1 h-10 w-full rounded-xl bg-board-bg px-3 text-base disabled:text-board-disabled-text"
             >
               {players.map((player) => (
                 <option key={player.id} value={player.id}>
@@ -109,7 +109,7 @@ export default function LootAllianceForm({
               onChange={(event) =>
                 updateAlliance(index, "partnerId", event.target.value)
               }
-              className="mt-1 h-10 w-full rounded-xl bg-[#f7f7f7] px-3 text-base disabled:text-[#a6a6a6]"
+              className="mt-1 h-10 w-full rounded-xl bg-board-bg px-3 text-base disabled:text-board-disabled-text"
             >
               {players.map((player) => (
                 <option key={player.id} value={player.id}>
@@ -125,7 +125,7 @@ export default function LootAllianceForm({
         type="button"
         onClick={addLootAlliance}
         disabled={disabled || value.length >= 2 || players.length < 2}
-        className="h-[35px] w-full rounded-xl bg-[#dddddd] text-base font-semibold text-black transition-colors hover:bg-[#cecece] disabled:cursor-not-allowed disabled:bg-[#eeeeee] disabled:text-[#a6a6a6]"
+        className="h-[35px] w-full rounded-xl bg-board-secondary text-base font-semibold text-board-text transition-colors hover:bg-board-primary-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text"
       >
         + 동맹 추가
       </button>

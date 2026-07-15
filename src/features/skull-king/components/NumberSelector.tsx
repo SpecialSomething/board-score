@@ -30,10 +30,10 @@ export default function NumberSelector({
               aria-pressed={isSelected}
               disabled={disabled}
               onClick={() => onChange(option)}
-              className={`flex size-[35px] items-center justify-center rounded-xl text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black disabled:cursor-not-allowed disabled:bg-[#eeeeee] disabled:text-[#a6a6a6] ${
+              className={`flex size-[35px] items-center justify-center rounded-xl text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text ${
                 isSelected
-                  ? "bg-[#767676] text-white"
-                  : "bg-[#dddddd] text-black hover:bg-[#cecece]"
+                  ? "bg-board-primary text-white"
+                  : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
               }`}
             >
               {option}

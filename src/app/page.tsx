@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
+
 import { useEffect, useState } from "react";
 
 import { loadSkullKingGame } from "@/features/skull-king/storage";
+
 import type { SkullKingGameState } from "@/features/skull-king/types";
+
+import Header from "@/components/Header";
 
 const GAME_ROUTE = "/games/skull-king";
 const NEW_GAME_ROUTE = "/games/skull-king?new=1";
@@ -31,7 +35,7 @@ function GameCard({ name, koreanName, detail, href }: GameCardProps) {
 
   if (!href) {
     return (
-      <article className={`${CARD_CLASS} bg-[#f3f3f3] text-[#767676]`}>
+      <article className={`${CARD_CLASS} bg-board-disabled text-board-disabled-text`}>
         {content}
       </article>
     );
@@ -40,7 +44,7 @@ function GameCard({ name, koreanName, detail, href }: GameCardProps) {
   return (
     <Link
       href={href}
-      className={`${CARD_CLASS} bg-white text-black transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:scale-[0.99]`}
+      className={`${CARD_CLASS} border border-board-border bg-board-surface text-board-text transition-transform hover:border-board-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary active:scale-[0.99]`}
     >
       {content}
     </Link>
@@ -51,7 +55,7 @@ function RecentGameCard({ game }: { game: SkullKingGameState }) {
   return (
     <Link
       href={GAME_ROUTE}
-      className={`${CARD_CLASS} bg-white text-black transition-transform focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black active:scale-[0.99]`}
+      className={`${CARD_CLASS} border border-board-border bg-board-surface text-board-text transition-transform hover:border-board-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary active:scale-[0.99]`}
     >
       <p className="text-xl leading-normal">Skull King 스컬킹</p>
       <div className="mt-5 text-xl leading-normal">
@@ -75,21 +79,18 @@ export default function Home() {
   }, []);
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[393px] bg-[#f7f7f7] p-6 font-sans">
-      <header>
-        <h1 className="text-[32px] font-bold leading-normal tracking-tight text-black">Board Score</h1>
-        <p className="mt-1 text-base leading-normal text-[#767676]">보드게임 점수 계산기</p>
-      </header>
+    <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
+      <Header />
 
       {recentGame && (
         <section className="mt-6" aria-labelledby="recent-games-heading">
-          <h2 id="recent-games-heading" className="text-xl leading-normal text-black">최근 게임</h2>
+          <h2 id="recent-games-heading" className="text-xl leading-normal text-board-text">최근 게임</h2>
           <div className="mt-4"><RecentGameCard game={recentGame} /></div>
         </section>
       )}
 
       <section className="mt-6" aria-labelledby="available-games-heading">
-        <h2 id="available-games-heading" className="text-xl leading-normal text-black">플레이할 게임</h2>
+        <h2 id="available-games-heading" className="text-xl leading-normal text-board-text">플레이할 게임</h2>
         <div className="mt-5 flex flex-col gap-6">
           <GameCard name="Skull King" koreanName="스컬킹" detail="2 ~ 8인" href={NEW_GAME_ROUTE} />
           <GameCard name="Tichu" koreanName="티츄" detail="Coming Soon" />

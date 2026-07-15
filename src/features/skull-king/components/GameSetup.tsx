@@ -71,8 +71,7 @@ export default function GameSetup({ onStart }: GameSetupProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f7f7]">
-      <section className="mx-auto flex w-full max-w-[393px] flex-col gap-4 p-6 font-sans text-black">
+      <section className="mt-6 flex w-full flex-col gap-4 font-sans text-board-text">
         <header>
           <h1 className="text-[28px] font-bold leading-normal tracking-tight">
             Skull King 스컬킹
@@ -82,7 +81,7 @@ export default function GameSetup({ onStart }: GameSetupProps) {
           </p>
         </header>
 
-        <div className="flex flex-col gap-5 overflow-hidden rounded-2xl bg-white p-5 shadow-[0_4px_4px_rgba(0,0,0,0.05)]">
+        <div className="flex flex-col gap-5 overflow-hidden rounded-2xl bg-board-surface p-5 shadow-[0_4px_4px_rgba(0,0,0,0.05)]">
           <h2 className="text-xl font-semibold leading-normal">게임 설정</h2>
 
           <fieldset>
@@ -99,10 +98,10 @@ export default function GameSetup({ onStart }: GameSetupProps) {
                     type="button"
                     aria-pressed={isSelected}
                     onClick={() => updatePlayerCount(count)}
-                    className={`flex size-[35px] shrink-0 items-center justify-center rounded-xl text-base font-semibold leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black ${
+                    className={`flex size-[35px] shrink-0 items-center justify-center rounded-xl text-base font-semibold leading-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary ${
                       isSelected
-                        ? "bg-[#767676] text-white"
-                        : "bg-[#dddddd] text-black hover:bg-[#cecece]"
+                        ? "bg-board-primary text-white"
+                        : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
                     }`}
                   >
                     {count}
@@ -137,7 +136,7 @@ export default function GameSetup({ onStart }: GameSetupProps) {
                       onChange={(event) =>
                         updatePlayerName(index, event.target.value)
                       }
-                      className="mt-1 h-12 w-full rounded-xl bg-[#f7f7f7] px-3 text-base font-medium text-black outline-none placeholder:text-[#999] focus:ring-2 focus:ring-[#767676]"
+                      className="mt-1 h-12 w-full rounded-xl bg-board-bg px-3 text-base font-medium text-board-text outline-none placeholder:text-board-disabled-text focus:ring-2 focus:ring-board-primary"
                     />
                   </div>
                 );
@@ -146,7 +145,7 @@ export default function GameSetup({ onStart }: GameSetupProps) {
           </div>
 
           {error && (
-            <p role="alert" className="text-base font-semibold leading-normal text-red-600">
+            <p role="alert" className="text-base font-semibold leading-normal text-board-danger">
               {error}
             </p>
           )}
@@ -158,14 +157,13 @@ export default function GameSetup({ onStart }: GameSetupProps) {
             className={`flex h-[35px] w-full items-center justify-center rounded-xl text-base font-semibold transition-colors
             ${
               canStart
-                ? "bg-black text-white hover:bg-[#333]"
-                : "bg-[#dddddd] text-[#767676]"
+                ? "bg-board-primary text-white hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary"
+                : "cursor-not-allowed bg-board-disabled text-board-disabled-text"
             }`}
           >
             게임 시작
           </button>
         </div>
       </section>
-    </div>
   );
 }
