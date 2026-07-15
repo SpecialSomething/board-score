@@ -1,10 +1,6 @@
 "use client";
 
-import type {
-  LootAlliance,
-  Player,
-  PlayerId,
-} from "../types";
+import type { LootAlliance, Player, PlayerId } from "../types";
 
 type LootAllianceFormProps = {
   players: Player[];
@@ -19,8 +15,9 @@ export default function LootAllianceForm({
   onChange,
   disabled = false,
 }: LootAllianceFormProps) {
-  function updateLootAlliancePlayer(
+  function updateAlliance(
     index: number,
+    key: "playerId" | "partnerId",
     playerId: PlayerId
   ) {
     onChange(
@@ -28,23 +25,7 @@ export default function LootAllianceForm({
         allianceIndex === index
           ? {
               ...alliance,
-              playerId,
-            }
-          : alliance
-      )
-    );
-  }
-
-  function updateLootAlliancePartner(
-    index: number,
-    partnerId: PlayerId
-  ) {
-    onChange(
-      value.map((alliance, allianceIndex) =>
-        allianceIndex === index
-          ? {
-              ...alliance,
-              partnerId,
+              [key]: playerId,
             }
           : alliance
       )
@@ -65,36 +46,52 @@ export default function LootAllianceForm({
     ]);
   }
 
-  function removeLootAlliance(index: number) {
-    onChange(
-      value.filter(
-        (_, allianceIndex) => allianceIndex !== index
-      )
-    );
-  }
-
   return (
-    <fieldset disabled={disabled}>
-      <legend>약탈품 동맹</legend>
+    <fieldset
+      disabled={disabled}
+      className="flex w-full flex-col gap-3 rounded-xl bg-[#e8e8e8] p-3"
+    >
+      <legend className="sr-only">약탈품 동맹</legend>
+      <h3 className="text-base font-semibold">약탈품 동맹</h3>
 
       {value.length === 0 && (
-        <p>이번 라운드에는 등록된 약탈품 동맹이 없습니다.</p>
+        <p className="text-base font-semibold text-[#989898]">
+          등록된 동맹 없음
+        </p>
       )}
 
       {value.map((alliance, index) => (
-        <div key={index}>
-          <p>약탈품 {index + 1}</p>
+        <section
+          key={index}
+          className="flex flex-col gap-3 rounded-xl bg-white p-3"
+        >
+          <div className="flex items-center justify-between">
+            <h4 className="font-semibold">약탈품 {index + 1}</h4>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() =>
+                onChange(
+                  value.filter(
+                    (_, allianceIndex) => allianceIndex !== index
+                  )
+                )
+              }
+              className="rounded-lg px-2 py-1 text-sm font-semibold text-red-600 disabled:text-[#a6a6a6]"
+            >
+              삭제
+            </button>
+          </div>
 
-          <label>
+          <label className="text-sm font-semibold">
             약탈품을 낸 플레이어
             <select
               value={alliance.playerId}
+              disabled={disabled}
               onChange={(event) =>
-                updateLootAlliancePlayer(
-                  index,
-                  event.target.value
-                )
+                updateAlliance(index, "playerId", event.target.value)
               }
+              className="mt-1 h-10 w-full rounded-xl bg-[#f7f7f7] px-3 text-base disabled:text-[#a6a6a6]"
             >
               {players.map((player) => (
                 <option key={player.id} value={player.id}>
@@ -104,16 +101,15 @@ export default function LootAllianceForm({
             </select>
           </label>
 
-          <label>
+          <label className="text-sm font-semibold">
             트릭을 획득한 플레이어
             <select
               value={alliance.partnerId}
+              disabled={disabled}
               onChange={(event) =>
-                updateLootAlliancePartner(
-                  index,
-                  event.target.value
-                )
+                updateAlliance(index, "partnerId", event.target.value)
               }
+              className="mt-1 h-10 w-full rounded-xl bg-[#f7f7f7] px-3 text-base disabled:text-[#a6a6a6]"
             >
               {players.map((player) => (
                 <option key={player.id} value={player.id}>
@@ -122,26 +118,16 @@ export default function LootAllianceForm({
               ))}
             </select>
           </label>
-
-          <button
-            type="button"
-            onClick={() => removeLootAlliance(index)}
-          >
-            삭제
-          </button>
-        </div>
+        </section>
       ))}
 
       <button
         type="button"
         onClick={addLootAlliance}
-        disabled={
-          disabled ||
-          value.length >= 2 ||
-          players.length < 2
-        }
+        disabled={disabled || value.length >= 2 || players.length < 2}
+        className="h-[35px] w-full rounded-xl bg-[#dddddd] text-base font-semibold text-black transition-colors hover:bg-[#cecece] disabled:cursor-not-allowed disabled:bg-[#eeeeee] disabled:text-[#a6a6a6]"
       >
-        약탈품 동맹 추가
+        + 동맹 추가
       </button>
     </fieldset>
   );

@@ -3,31 +3,16 @@
 import { useState } from "react";
 
 import type { SkullKingPlayerRoundInput } from "../types";
-
+import BonusSection from "./BonusSection";
 import NumberSelector from "./NumberSelector";
 
-import {
-  MAX_STANDARD_FOURTEENS,
-  MAX_MERMAIDS_CAPTURED_BY_PIRATE,
-  MAX_PIRATES_CAPTURED_BY_SKULL_KING,
-} from "../constants";
-
 type PlayerCardProps = {
-  playerName: string;                                   // 실제 화면에서 보여줄 플레이어의 이름
-  round: number;                                        // bid와 tricks 입력 범위에 사용될 현재 라운드 수 
-  value: SkullKingPlayerRoundInput;                     // 현재 플레이어의 입력값
-  onChange: (value: SkullKingPlayerRoundInput) => void; // 입력값이 바뀔 때 부모에게 새 값을 전달
-  disabled?: boolean;                                   // 계산 완료 후 입력을 잠그는 용도
+  playerName: string;
+  round: number;
+  value: SkullKingPlayerRoundInput;
+  onChange: (value: SkullKingPlayerRoundInput) => void;
+  disabled?: boolean;
 };
-
-type NumberBonusKey =
-  | "standardFourteensCount"
-  | "mermaidsCapturedByPirate"
-  | "piratesCapturedBySkullKing";
-
-type BooleanBonusKey =
-  | "blackFourteenCaptured"
-  | "skullKingCapturedByMermaid";
 
 export default function PlayerCard({
   playerName,
@@ -36,90 +21,26 @@ export default function PlayerCard({
   onChange,
   disabled = false,
 }: PlayerCardProps) {
-  // 최댓값과 최솟값을 제한하는 함수
-  function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
+  const [isBonusOpen, setIsBonusOpen] = useState(false);
+
+  function clamp(amount: number, min: number, max: number): number {
+    return Math.min(Math.max(amount, min), max);
   }
-
-  
-
-  // UpdateNumberBonus를 간단히 만들, key값에 따라 서로 다른 최댓값을 리턴하는 함수
-  function getBonusMax(key: NumberBonusKey): number {
-    switch (key) {
-        case "standardFourteensCount":
-            return MAX_STANDARD_FOURTEENS;
-
-        case "mermaidsCapturedByPirate":
-            return MAX_MERMAIDS_CAPTURED_BY_PIRATE;
-
-        case "piratesCapturedBySkullKing":
-            return MAX_PIRATES_CAPTURED_BY_SKULL_KING;
-    }
-  }
-  function updateBid(bid: number) {
-    onChange({
-      ...value,
-      bid: clamp(bid, 0, round),
-    });
-  }
-
-  function updateTricks(tricks: number) {
-    onChange({
-      ...value,
-      tricks: clamp(tricks, 0, round),
-    });
-  }
-
-  function updateNumberBonus(
-    key: NumberBonusKey,
-    amount: number
-  ) {
-    onChange({
-      ...value,
-      bonuses: {
-        ...value.bonuses,
-        [key]: clamp(amount, 0, getBonusMax(key)),
-      },
-    });
-  }
-
-  function updateBooleanBonus(
-    key: BooleanBonusKey,
-    checked: boolean
-  ) {
-    onChange({
-      ...value,
-      bonuses: {
-        ...value.bonuses,
-        [key]: checked,
-      },
-    });
-  }
-
-  function hasAnyBonus(): boolean{
-    const bonuses = value.bonuses;
-
-    return (
-      bonuses.standardFourteensCount > 0 ||
-      bonuses.blackFourteenCaptured ||
-      bonuses.mermaidsCapturedByPirate > 0 ||
-      bonuses.piratesCapturedBySkullKing > 0 ||
-      bonuses.skullKingCapturedByMermaid
-    );
-
-  }
-
-  const [isBonusOpen, setIsBonusOpen] = useState(hasAnyBonus());
 
   return (
-    <section>
-      <h3>{playerName}</h3>
+    <section className="flex w-full flex-col gap-3 rounded-xl border border-[#e5e7eb] bg-white p-3">
+      <h3 className="text-lg font-semibold leading-normal">{playerName}</h3>
 
       <NumberSelector
         label="예측"
         value={value.bid}
         max={round}
-        onChange={updateBid}
+        onChange={(bid) =>
+          onChange({
+            ...value,
+            bid: clamp(bid, 0, round),
+          })
+        }
         disabled={disabled}
       />
 
@@ -127,100 +48,37 @@ export default function PlayerCard({
         label="실제"
         value={value.tricks}
         max={round}
-        onChange={updateTricks}
+        onChange={(tricks) =>
+          onChange({
+            ...value,
+            tricks: clamp(tricks, 0, round),
+          })
+        }
         disabled={disabled}
       />
 
       <button
         type="button"
-        onClick={() => setIsBonusOpen((open) => !open)}
+        disabled={disabled}
         aria-expanded={isBonusOpen}
+        onClick={() => setIsBonusOpen((open) => !open)}
+        className="flex min-h-[39px] w-full items-center justify-between p-2.5 text-base font-semibold disabled:cursor-not-allowed disabled:text-[#a6a6a6]"
       >
-        보너스 입력 {isBonusOpen ? "▲" : "▼"}
+        <span>보너스 입력</span>
+        <span aria-hidden="true">{isBonusOpen ? "▲" : "▼"}</span>
       </button>
 
       {isBonusOpen && (
-        <fieldset disabled={disabled}>
-          <legend>보너스</legend>
-  
-          <label>
-            일반색 14 카드
-            <input
-              type="number"
-              min={0}
-              max={MAX_STANDARD_FOURTEENS}
-              value={value.bonuses.standardFourteensCount}
-              onChange={(event) =>
-                updateNumberBonus(
-                  "standardFourteensCount",
-                  Number(event.target.value)
-                )
-              }
-            />
-          </label>
-  
-          <label>
-            <input
-              type="checkbox"
-              checked={value.bonuses.blackFourteenCaptured}
-              onChange={(event) =>
-                updateBooleanBonus(
-                  "blackFourteenCaptured",
-                  event.target.checked
-                )
-              }
-            />
-            검은색 14 획득
-          </label>
-  
-          <label>
-            해적으로 포획한 인어
-            <input
-              type="number"
-              min={0}
-              max={MAX_MERMAIDS_CAPTURED_BY_PIRATE}
-              value={value.bonuses.mermaidsCapturedByPirate}
-              onChange={(event) =>
-                updateNumberBonus(
-                  "mermaidsCapturedByPirate",
-                  Number(event.target.value)
-                )
-              }
-            />
-          </label>
-  
-          <label>
-            스컬 킹으로 포획한 해적
-            <input
-              type="number"
-              min={0}
-              max={MAX_PIRATES_CAPTURED_BY_SKULL_KING}
-              value={value.bonuses.piratesCapturedBySkullKing}
-              onChange={(event) =>
-                updateNumberBonus(
-                  "piratesCapturedBySkullKing",
-                  Number(event.target.value)
-                )
-              }
-            />
-          </label>
-  
-          <label>
-            <input
-              type="checkbox"
-              checked={
-                value.bonuses.skullKingCapturedByMermaid
-              }
-              onChange={(event) =>
-                updateBooleanBonus(
-                  "skullKingCapturedByMermaid",
-                  event.target.checked
-                )
-              }
-            />
-            인어로 스컬 킹 포획
-          </label>
-        </fieldset>
+        <BonusSection
+          value={value.bonuses}
+          onChange={(bonuses) =>
+            onChange({
+              ...value,
+              bonuses,
+            })
+          }
+          disabled={disabled}
+        />
       )}
     </section>
   );

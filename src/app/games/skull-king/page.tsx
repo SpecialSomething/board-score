@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 
@@ -22,8 +22,6 @@ import { calculateSkullKingRound } from "@/features/skull-king/calculator";
 import RoundForm from "@/features/skull-king/components/RoundForm";
 
 import { RoundPlayer } from "@/features/skull-king/types";
-
-import ScoreBoard from "@/features/skull-king/components/ScoreBoard";
 
 import { MAX_ROUND } from "@/features/skull-king/constants";
 
@@ -55,8 +53,6 @@ export default function SkullKingPage() {
   const [isGameStarted, setIsGameStarted] = useState(false);
 
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
-
-  const latestResult = roundResults[roundResults.length - 1];
 
   const totalScores = new Map<string, number>();
 
@@ -168,15 +164,22 @@ export default function SkullKingPage() {
     router.replace("/games/skull-king");
   }
 
-  function handleResetGame() {
+  function handlePlayAgain() {
     clearSkullKingGame();
 
-    setPlayers([]);
+    setPlayers((currentPlayers) => 
+      resetPlayerInputs(currentPlayers)
+    );
     setCurrentRound(1);
     setRoundResults([]);
     setLootAlliances([]);
     setIsGameFinished(false);
-    setIsGameStarted(false);
+    setIsGameStarted(true);
+  }
+
+  function handleGoHome() {
+    clearSkullKingGame();
+    router.push("/")
   }
 
   function handleSubmit() {
@@ -227,78 +230,83 @@ export default function SkullKingPage() {
 
   if (!isStorageLoaded) {
     return (
-      <main>
-        <p>게임을 불러오는 중입니다...</p>
+      <main className="min-h-screen bg-[#f7f7f7] p-6">
+        <p className="mx-auto w-full max-w-[393px]">게임을 불러오는 중입니다...</p>
       </main>
     );
   }
 
-
   if (!isGameStarted) {
-    return(
-        <main>
-            <GameSetup onStart={handleStartGame}/>
-        </main>
+    return (
+      <main>
+        <GameSetup onStart={handleStartGame} />
+      </main>
     );
   }
 
   return (
-    <main>
-      <h1>스컬 킹 점수 계산기</h1>
+    <div className="min-h-screen bg-[#f7f7f7]">
+      <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-black">
+        {!isGameFinished && (
+          <RoundForm
+            round={currentRound}
+            players={players}
+            lootAlliances={lootAlliances}
+            onPlayersChange={setPlayers}
+            onLootAlliancesChange={setLootAlliances}
+            onSubmit={handleSubmit}
+          />
+        )}
 
-      <RoundForm
-        round={currentRound}
-        players={players}
-        lootAlliances={lootAlliances}
-        onPlayersChange={setPlayers}
-        onLootAlliancesChange={setLootAlliances}
-        onSubmit={handleSubmit}
-        disabled={isGameFinished}
-      />
-
-      {latestResult && (
-        <ScoreBoard
-            players = {players.map((roundPlayer) => roundPlayer.player)}
-            result = {latestResult}
-        />
-      )}
-
-      {roundResults.length > 0 && (
-        <section>
-            <h2>
-                {isGameFinished ? "최종 순위" : "현재 순위"}
+        {roundResults.length > 0 && (
+          <section className="rounded-2xl border border-[#e5e7eb] bg-white p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+            <h2 className="text-xl font-semibold">
+              {isGameFinished ? "최종 순위" : "현재 순위"}
             </h2>
 
-            <ol>
-                {standings.map((player) => (
-                    <li key={player.playerId}>
-                        {player.playerName} : {player.totalScore}점
-                    </li>
-                ))}
+            <ol className="mt-4 flex flex-col gap-2">
+              {standings.map((player, index) => (
+                <li
+                  key={player.playerId}
+                  className="flex items-center justify-between rounded-xl bg-[#f7f7f7] px-3 py-2.5"
+                >
+                  <span className="font-semibold">
+                    {index + 1}. {player.playerName}
+                  </span>
+                  <strong>{player.totalScore}점</strong>
+                </li>
+              ))}
             </ol>
 
             {isGameFinished && (
+              <div className="flex flex-col gap-3">
                 <button
-                    type="button"
-                    onClick={handleResetGame}
+                  type="button"
+                  onClick={handlePlayAgain}
+                  className="mt-4 h-11 w-full rounded-xl bg-[#767676] font-semibold text-white"
                 >
-                  새 게임
+                  한 판 더?
                 </button>
+              
+                <button
+                  type="button"
+                  onClick={handleGoHome}
+                  className="mt-4 h-11 w-full rounded-xl bg-[#767676] font-semibold text-white"
+                >
+                  홈으로
+                </button>
+              </div>
             )}
+          </section>
+        )}
 
-        </section>
-      )}
-      
-      {roundResults.length > 0 && (
-        <details>
-          <summary>라운드별 점수 보기</summary>
-        
+        {roundResults.length > 0 && (
           <RoundHistory
             players={players.map((roundPlayer) => roundPlayer.player)}
             results={roundResults}
           />
-        </details>
-      )} 
-    </main>
+        )}
+      </main>
+    </div>
   );
 }
