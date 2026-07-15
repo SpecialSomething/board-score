@@ -7,6 +7,7 @@ import { loadSkullKingGame } from "@/features/skull-king/storage";
 import type { SkullKingGameState } from "@/features/skull-king/types";
 
 const GAME_ROUTE = "/games/skull-king";
+const NEW_GAME_ROUTE = "/games/skull-king?new=1";
 const CARD_CLASS = "block w-full overflow-hidden rounded-2xl p-5 shadow-[0_4px_4px_rgba(0,0,0,0.05)]";
 
 type GameCardProps = {
@@ -88,9 +89,9 @@ export default function Home() {
       )}
 
       <section className="mt-6" aria-labelledby="available-games-heading">
-        <h2 id="available-games-heading" className="text-xl leading-normal text-black">플레이 할 게임</h2>
+        <h2 id="available-games-heading" className="text-xl leading-normal text-black">플레이할 게임</h2>
         <div className="mt-5 flex flex-col gap-6">
-          <GameCard name="Skull King" koreanName="스컬킹" detail="2 ~ 8인" href={GAME_ROUTE} />
+          <GameCard name="Skull King" koreanName="스컬킹" detail="2 ~ 8인" href={NEW_GAME_ROUTE} />
           <GameCard name="Tichu" koreanName="티츄" detail="Coming Soon" />
           <GameCard name="Wizard" koreanName="위자드" detail="Coming Soon" />
         </div>

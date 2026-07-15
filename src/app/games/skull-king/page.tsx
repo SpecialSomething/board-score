@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 
+import { useRouter } from "next/navigation";
+
 import type {
   LootAlliance,
   Player,
@@ -38,6 +40,8 @@ const EMPTY_BONUSES = {
 }
 
 export default function SkullKingPage() {
+  const router = useRouter();
+
   const [players, setPlayers] = useState<RoundPlayer[]>([]);
 
   const [isGameFinished, setIsGameFinished] = useState(false);
@@ -56,19 +60,36 @@ export default function SkullKingPage() {
 
   const totalScores = new Map<string, number>();
 
-  useEffect(() => {
-    const savedGame = loadSkullKingGame();
+  
 
-    if (savedGame) {
+  useEffect(() => {
+    const searchParams = new URLSearchParams(
+      window.location.search
+    );
+  
+    const shouldStartNewGame =
+      searchParams.get("new") === "1";
+  
+    if (shouldStartNewGame) {
+      // 기존 저장 게임을 불러오지 않고 설정 화면을 표시한다.
       // eslint-disable-next-line react-hooks/set-state-in-effect
+      setIsStorageLoaded(true);
+      return;
+    }
+  
+    const savedGame = loadSkullKingGame();
+  
+    if (savedGame) {
+      // localStorage의 진행 중 게임을 최초 한 번 복원합니다.
       setPlayers(savedGame.players);
+  
       setCurrentRound(savedGame.currentRound);
       setRoundResults(savedGame.roundResults);
       setLootAlliances(savedGame.lootAlliances);
       setIsGameStarted(savedGame.isGameStarted);
       setIsGameFinished(savedGame.isGameFinished);
     }
-
+  
     setIsStorageLoaded(true);
   }, []);
 
@@ -144,6 +165,7 @@ export default function SkullKingPage() {
     setLootAlliances([]);
     setIsGameFinished(false);
     setIsGameStarted(true);
+    router.replace("/games/skull-king");
   }
 
   function handleResetGame() {
