@@ -26,3 +26,7 @@ export const MAX_PIRATES_CAPTURED_BY_SKULL_KING = 6;
 
 // 최대 동맹 개수에 대한 상수
 export const MAX_LOOT_ALLIANCES = 2;
+
+// 최대 최소 플레이어에 대한 상수
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 8;

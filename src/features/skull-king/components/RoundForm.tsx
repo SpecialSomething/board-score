@@ -6,14 +6,10 @@ import LootAllianceForm from "./LootAllianceForm";
 
 import type {
   LootAlliance,
-  Player,
   SkullKingPlayerRoundInput,
 } from "../types";
 
-export type RoundPlayer = {
-  player: Player;
-  value: SkullKingPlayerRoundInput;
-};
+import { RoundPlayer } from "../types";
 
 type RoundFormProps = {
   round: number;

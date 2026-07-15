@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import type {
   LootAlliance,
@@ -9,17 +9,25 @@ import type {
   SkullKingRoundResult,
 } from "@/features/skull-king/types";
 
+import {
+  clearSkullKingGame,
+  loadSkullKingGame,
+  saveSkullKingGame,
+} from "@/features/skull-king/storage";
+
 import { calculateSkullKingRound } from "@/features/skull-king/calculator";
 
-import RoundForm, {
-  type RoundPlayer,
-} from "@/features/skull-king/components/RoundForm";
+import RoundForm from "@/features/skull-king/components/RoundForm";
+
+import { RoundPlayer } from "@/features/skull-king/types";
 
 import ScoreBoard from "@/features/skull-king/components/ScoreBoard";
 
 import { MAX_ROUND } from "@/features/skull-king/constants";
 
 import GameSetup from "@/features/skull-king/components/GameSetup";
+
+import RoundHistory from "@/features/skull-king/components/RoundHistory";
 
 const EMPTY_BONUSES = {
     standardFourteensCount: 0,
@@ -42,14 +50,53 @@ export default function SkullKingPage() {
 
   const [isGameStarted, setIsGameStarted] = useState(false);
 
+  const [isStorageLoaded, setIsStorageLoaded] = useState(false);
+
   const latestResult = roundResults[roundResults.length - 1];
 
   const totalScores = new Map<string, number>();
 
+  useEffect(() => {
+    const savedGame = loadSkullKingGame();
+
+    if (savedGame) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setPlayers(savedGame.players);
+      setCurrentRound(savedGame.currentRound);
+      setRoundResults(savedGame.roundResults);
+      setLootAlliances(savedGame.lootAlliances);
+      setIsGameStarted(savedGame.isGameStarted);
+      setIsGameFinished(savedGame.isGameFinished);
+    }
+
+    setIsStorageLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isStorageLoaded || !isGameStarted) {
+      return;
+    }
+    saveSkullKingGame({
+      players,
+      currentRound,
+      roundResults,
+      lootAlliances,
+      isGameStarted,
+      isGameFinished,
+    });
+  }, [
+    players,
+    currentRound,
+    roundResults,
+    lootAlliances,
+    isGameStarted,
+    isGameFinished,
+    isStorageLoaded,
+  ]);
+
   for (const roundResult of roundResults) {
     for (const playerResult of roundResult.players) {
-      const currentScore =
-        totalScores.get(playerResult.playerId) ?? 0;
+      const currentScore = totalScores.get(playerResult.playerId) ?? 0;
 
       totalScores.set(
         playerResult.playerId,
@@ -99,6 +146,17 @@ export default function SkullKingPage() {
     setIsGameStarted(true);
   }
 
+  function handleResetGame() {
+    clearSkullKingGame();
+
+    setPlayers([]);
+    setCurrentRound(1);
+    setRoundResults([]);
+    setLootAlliances([]);
+    setIsGameFinished(false);
+    setIsGameStarted(false);
+  }
+
   function handleSubmit() {
     if (isGameFinished) {
         return;
@@ -110,7 +168,7 @@ export default function SkullKingPage() {
         lootAlliances,
     };
 
-    setLootAlliances([]);
+    
 
     const result = calculateSkullKingRound(input);
 
@@ -118,6 +176,8 @@ export default function SkullKingPage() {
         ...previousResults,
         result,
     ]);
+
+    setLootAlliances([]);
 
     if (currentRound === MAX_ROUND) {
         setIsGameFinished(true);
@@ -140,6 +200,14 @@ export default function SkullKingPage() {
             skullKingPirate: player.bonuses.piratesCapturedBySkullKing,
             mermaidSkullKing: player.bonuses.skullKingCapturedByMermaid,
         }))
+    );
+  }
+
+  if (!isStorageLoaded) {
+    return (
+      <main>
+        <p>게임을 불러오는 중입니다...</p>
+      </main>
     );
   }
 
@@ -186,9 +254,29 @@ export default function SkullKingPage() {
                     </li>
                 ))}
             </ol>
+
+            {isGameFinished && (
+                <button
+                    type="button"
+                    onClick={handleResetGame}
+                >
+                  새 게임
+                </button>
+            )}
+
         </section>
       )}
-
+      
+      {roundResults.length > 0 && (
+        <details>
+          <summary>라운드별 점수 보기</summary>
+        
+          <RoundHistory
+            players={players.map((roundPlayer) => roundPlayer.player)}
+            results={roundResults}
+          />
+        </details>
+      )} 
     </main>
   );
 }

@@ -66,7 +66,24 @@ export type SkullKingGameResult = {
   players: SkullKingGamePlayerResult[];  
 };
 
+// 플레이어의 아이디와 이름을 저장해두는 타입
 export type Player = {
   id: PlayerId;   // 플레이어를 식별할 아이디
   name: string;   // 실제 화면에 보여줄 이름
+};
+
+// 플레이어의 라운드 값과 아이디, 이름 등을 저장해두는 타입
+export type RoundPlayer = {
+  player: Player;
+  value: SkullKingPlayerRoundInput;
+};
+
+// 게임 상태를 저장해두는 타입
+export type SkullKingGameState = {
+  players: RoundPlayer[];
+  currentRound: number;
+  roundResults: SkullKingRoundResult[];
+  lootAlliances: LootAlliance[];
+  isGameStarted: boolean;
+  isGameFinished: boolean;
 };
