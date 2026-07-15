@@ -1,6 +1,6 @@
 "use client";
 
-import PlayerRoundForm from "./PlayerRoundForm";
+import PlayerCard from "./PlayerCard";
 
 import LootAllianceForm from "./LootAllianceForm";
 
@@ -60,7 +60,7 @@ export default function RoundForm({
 
       <div>
         {players.map((roundPlayer, index) => (
-          <PlayerRoundForm
+          <PlayerCard
             key={roundPlayer.player.id}
             playerName={roundPlayer.player.name}
             round={round}
