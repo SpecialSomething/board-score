@@ -182,20 +182,12 @@ export default function SkullKingPage() {
         setCurrentRound((round) => round + 1);
     }
 
-    console.log(`===== Round ${input.round} =====`);
-
-    console.table(
-        input.players.map((player) => ({
-            playerId: player.playerId,
-            bid: player.bid,
-            tricks: player.tricks,
-            standard14: player.bonuses.standardFourteensCount,
-            black14: player.bonuses.blackFourteenCaptured,
-            pirateMermaid: player.bonuses.mermaidsCapturedByPirate,
-            skullKingPirate: player.bonuses.piratesCapturedBySkullKing,
-            mermaidSkullKing: player.bonuses.skullKingCapturedByMermaid,
-        }))
-    );
+    requestAnimationFrame(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth",
+      });
+    });
   }
 
   if (!isStorageLoaded) {
