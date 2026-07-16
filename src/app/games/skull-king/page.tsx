@@ -31,13 +31,13 @@ import RoundHistory from "@/features/skull-king/components/RoundHistory";
 
 import Header from "@/components/Header";
 
-const EMPTY_BONUSES = {
-    standardFourteensCount: 0,
-    blackFourteenCaptured: false,
-    mermaidsCapturedByPirate: 0,
-    piratesCapturedBySkullKing: 0,
-    skullKingCapturedByMermaid: false,
-}
+import { calculateStandings } from "@/features/skull-king/standings";
+
+import {
+  createRoundPlayers,
+  resetRoundPlayerInputs,
+} from "@/features/skull-king/factories";
+
 
 export default function SkullKingPage() {
   const router = useRouter();
@@ -56,8 +56,14 @@ export default function SkullKingPage() {
 
   const [isStorageLoaded, setIsStorageLoaded] = useState(false);
 
-  const totalScores = new Map<string, number>();
+  const standings = calculateStandings(players, roundResults);
 
+  const totalScores = new Map(
+    standings.map((standing) => [
+      standing.playerId,
+      standing.totalScore
+    ])
+  );
 
 
   useEffect(() => {
@@ -113,64 +119,11 @@ export default function SkullKingPage() {
     isStorageLoaded,
   ]);
 
-  for (const roundResult of roundResults) {
-    for (const playerResult of roundResult.players) {
-      const currentScore = totalScores.get(playerResult.playerId) ?? 0;
 
-      totalScores.set(
-        playerResult.playerId,
-        currentScore + playerResult.roundScore
-      );
-    }
-  }
-
-  const sortedStandings = players
-    .map((roundPlayer) => ({
-      playerId: roundPlayer.player.id,
-      playerName: roundPlayer.player.name,
-      totalScore: totalScores.get(roundPlayer.player.id) ?? 0,
-    }))
-    .sort((a, b) => b.totalScore - a.totalScore);
   
-  const standings = sortedStandings.map((player) => {
-  const firstPlayerWithSameScoreIndex =
-    sortedStandings.findIndex(
-        (standing) =>
-          standing.totalScore === player.totalScore
-    );
-  
-    return {
-      ...player,
-      rank: firstPlayerWithSameScoreIndex + 1,
-    };
-  });
-
-  function resetPlayerInputs(
-    currentPlayers: RoundPlayer[]
-  ): RoundPlayer[] {
-    return currentPlayers.map((roundPlayer) => ({
-        ...roundPlayer,
-        value: {
-            ...roundPlayer.value,
-            bid: 0,
-            tricks: 0,
-            bonuses: EMPTY_BONUSES,
-        },
-    }));
-  }
 
   function handleStartGame(newPlayers: Player[]) {
-    const roundPlayers: RoundPlayer[] = newPlayers.map((player) => ({
-        player,
-        value: {
-            playerId: player.id,
-            bid: 0,
-            tricks: 0,
-            bonuses: {
-                ...EMPTY_BONUSES,
-            },
-        },
-    }));
+    const roundPlayers = createRoundPlayers(newPlayers);
 
     setPlayers(roundPlayers);
     setCurrentRound(1);
@@ -185,7 +138,7 @@ export default function SkullKingPage() {
     clearSkullKingGame();
 
     setPlayers((currentPlayers) =>
-      resetPlayerInputs(currentPlayers)
+      resetRoundPlayerInputs(currentPlayers)
     );
     setCurrentRound(1);
     setRoundResults([]);
@@ -225,7 +178,7 @@ export default function SkullKingPage() {
         setIsGameFinished(true);
     }
     else {
-        setPlayers((currentPlayer) => resetPlayerInputs(currentPlayer));
+        setPlayers((currentPlayer) => resetRoundPlayerInputs(currentPlayer));
         setCurrentRound((round) => round + 1);
     }
 
