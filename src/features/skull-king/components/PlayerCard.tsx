@@ -9,6 +9,7 @@ import NumberSelector from "./NumberSelector";
 type PlayerCardProps = {
   playerName: string;
   totalScore: number;
+  previewScore: number;
   round: number;
   value: SkullKingPlayerRoundInput;
   onChange: (value: SkullKingPlayerRoundInput) => void;
@@ -18,6 +19,7 @@ type PlayerCardProps = {
 export default function PlayerCard({
   playerName,
   totalScore,
+  previewScore,
   round,
   value,
   onChange,
@@ -33,7 +35,7 @@ export default function PlayerCard({
     <section className="flex w-full flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-lg font-semibold leading-normal">{playerName}</h3>
-        <strong className="text-base font-semibold text-board-primary">{totalScore}점</strong>
+        <strong className="text-base font-semibold text-board-primary">현재 {totalScore}점</strong>
       </div>
       <NumberSelector
         label="예측"
@@ -61,6 +63,25 @@ export default function PlayerCard({
         disabled={disabled}
       />
 
+      <div className="flex items-center justify-between py-2">
+        <span className="font-semibold text-gray-700">
+          예상 점수
+        </span>
+      
+        <strong
+          className={`text-lg font-bold ${
+            previewScore > 0
+              ? "text-board-primary"
+              : previewScore < 0
+                ? "text-red-600"
+                : "text-board-muted"
+          }`}
+        >
+          {previewScore > 0 ? "+" : ""}
+          {previewScore}점
+        </strong>
+      </div>
+      
       <button
         type="button"
         disabled={disabled}
