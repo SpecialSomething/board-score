@@ -11,6 +11,7 @@ import PlayerCard from "./PlayerCard";
 type RoundFormProps = {
   round: number;
   players: RoundPlayer[];
+  totalScores: Map<string, number>;
   lootAlliances: LootAlliance[];
   onPlayersChange: (players: RoundPlayer[]) => void;
   onLootAlliancesChange: (alliances: LootAlliance[]) => void;
@@ -21,6 +22,7 @@ type RoundFormProps = {
 export default function RoundForm({
   round,
   players,
+  totalScores,
   lootAlliances,
   onPlayersChange,
   onLootAlliancesChange,
@@ -55,6 +57,9 @@ export default function RoundForm({
           <PlayerCard
             key={roundPlayer.player.id}
             playerName={roundPlayer.player.name}
+            totalScore={
+              totalScores.get(roundPlayer.player.id) ?? 0
+            }
             round={round}
             value={roundPlayer.value}
             onChange={(newValue) => updatePlayerValue(index, newValue)}
@@ -74,7 +79,7 @@ export default function RoundForm({
         type="button"
         disabled={disabled}
         onClick={onSubmit}
-        className="h-11 w-full rounded-xl bg-board-primary text-base font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text"
+        className="h-12 w-full rounded-xl bg-board-primary font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text"
       >
         이번 라운드 저장
       </button>

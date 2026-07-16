@@ -8,6 +8,7 @@ import NumberSelector from "./NumberSelector";
 
 type PlayerCardProps = {
   playerName: string;
+  totalScore: number;
   round: number;
   value: SkullKingPlayerRoundInput;
   onChange: (value: SkullKingPlayerRoundInput) => void;
@@ -16,6 +17,7 @@ type PlayerCardProps = {
 
 export default function PlayerCard({
   playerName,
+  totalScore,
   round,
   value,
   onChange,
@@ -29,8 +31,10 @@ export default function PlayerCard({
 
   return (
     <section className="flex w-full flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
-      <h3 className="text-lg font-semibold leading-normal">{playerName}</h3>
-
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-lg font-semibold leading-normal">{playerName}</h3>
+        <strong className="text-base font-semibold text-board-primary">{totalScore}점</strong>
+      </div>
       <NumberSelector
         label="예측"
         value={value.bid}
@@ -62,7 +66,7 @@ export default function PlayerCard({
         disabled={disabled}
         aria-expanded={isBonusOpen}
         onClick={() => setIsBonusOpen((open) => !open)}
-        className="flex min-h-[39px] w-full items-center justify-between p-2.5 text-base font-semibold disabled:cursor-not-allowed disabled:text-board-disabled-text"
+        className="flex w-full items-center justify-between rounded-xl py-2 text-left text-base font-semibold text-board-text transition-colors hover:bg-board-primary-soft disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span>보너스 입력</span>
         <span aria-hidden="true">{isBonusOpen ? "▲" : "▼"}</span>

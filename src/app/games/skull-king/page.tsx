@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 
@@ -124,11 +124,26 @@ export default function SkullKingPage() {
     }
   }
 
-  const standings = players.map((roundPlayer) => ({
-    playerId: roundPlayer.player.id,
-    playerName: roundPlayer.player.name,
-    totalScore: totalScores.get(roundPlayer.player.id) ?? 0,
-  })).sort((a, b) => b.totalScore - a.totalScore);
+  const sortedStandings = players
+    .map((roundPlayer) => ({
+      playerId: roundPlayer.player.id,
+      playerName: roundPlayer.player.name,
+      totalScore: totalScores.get(roundPlayer.player.id) ?? 0,
+    }))
+    .sort((a, b) => b.totalScore - a.totalScore);
+  
+  const standings = sortedStandings.map((player) => {
+  const firstPlayerWithSameScoreIndex =
+    sortedStandings.findIndex(
+        (standing) =>
+          standing.totalScore === player.totalScore
+    );
+  
+    return {
+      ...player,
+      rank: firstPlayerWithSameScoreIndex + 1,
+    };
+  });
 
   function resetPlayerInputs(
     currentPlayers: RoundPlayer[]
@@ -260,9 +275,9 @@ export default function SkullKingPage() {
           <h1 className="text-[32px] leading-[39px] font-bold tracking-[-0.02em] text-board-text">게임 종료</h1>
           <h2 className="text-xl leading-6 font-bold text-board-text">축하합니다!</h2>
           <ol className="flex flex-col text-xl leading-6 text-board-text">
-            {standings.map((player, index) => (
-              <li key={player.playerId} className={index === 0 ? "font-bold" : index < 3 ? "font-semibold" : "font-normal text-board-muted"}>
-                {index + 1}. {player.playerName} {player.totalScore}점
+            {standings.map((player) => (
+              <li key={player.playerId} className={player.rank === 1 ? "font-bold" : player.rank < 4 ? "font-semibold" : "font-normal text-board-muted"}>
+                {player.rank}. {player.playerName} {player.totalScore}점
               </li>
             ))}
           </ol>
@@ -288,6 +303,7 @@ export default function SkullKingPage() {
           <RoundForm
             round={currentRound}
             players={players}
+            totalScores={totalScores}
             lootAlliances={lootAlliances}
             onPlayersChange={setPlayers}
             onLootAlliancesChange={setLootAlliances}
@@ -308,7 +324,7 @@ export default function SkullKingPage() {
                   className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${index === 0 ? "bg-board-primary-soft" : "bg-board-secondary"}`}
                 >
                   <span className="font-semibold">
-                    {index + 1}. {player.playerName}
+                    {player.rank}. {player.playerName}
                   </span>
                   <strong>{player.totalScore}점</strong>
                 </li>

@@ -3,49 +3,18 @@ import {
   MAX_PIRATES_CAPTURED_BY_SKULL_KING,
   MAX_STANDARD_FOURTEENS,
 } from "../constants";
+
 import type { SkullKingBonusInput } from "../types";
+
 import NumberSelector from "./NumberSelector";
+
+import BinarySelector from "./BinarySelector";
 
 type BonusSectionProps = {
   value: SkullKingBonusInput;
   onChange: (value: SkullKingBonusInput) => void;
   disabled?: boolean;
 };
-
-type BinarySelectorProps = {
-  value: boolean;
-  onChange: (value: boolean) => void;
-  disabled: boolean;
-};
-
-function BinarySelector({ value, onChange, disabled }: BinarySelectorProps) {
-  return (
-    <div className="flex gap-2">
-      <button
-        type="button"
-        aria-pressed={!value}
-        disabled={disabled}
-        onClick={() => onChange(false)}
-        className={`h-[35px] w-[70px] rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text ${
-          !value ? "bg-board-primary text-white" : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
-        }`}
-      >
-        미획득
-      </button>
-      <button
-        type="button"
-        aria-pressed={value}
-        disabled={disabled}
-        onClick={() => onChange(true)}
-        className={`h-[35px] w-[70px] rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text ${
-          value ? "bg-board-primary text-white" : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
-        }`}
-      >
-        획득
-      </button>
-    </div>
-  );
-}
 
 export default function BonusSection({
   value,
