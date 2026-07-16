@@ -5,8 +5,12 @@ import type {
   RoundPlayer,
   SkullKingPlayerRoundInput,
 } from "../types";
+
 import LootAllianceForm from "./LootAllianceForm";
+
 import PlayerCard from "./PlayerCard";
+
+import { calculateSkullKingRound } from "../calculator";
 
 type RoundFormProps = {
   round: number;
@@ -45,6 +49,19 @@ export default function RoundForm({
     );
   }
 
+  const previewResult = calculateSkullKingRound({
+    round,
+    players: players.map((roundPlayer) => roundPlayer.value),
+    lootAlliances,
+  });
+
+  const previewScores = new Map(
+    previewResult.players.map((playerResult) => [
+      playerResult.playerId,
+      playerResult.roundScore,
+    ])
+  );
+
   return (
     <div className="flex w-full flex-col gap-5 rounded-2xl border border-board-border bg-board-surface p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
       <header>
@@ -59,6 +76,9 @@ export default function RoundForm({
             playerName={roundPlayer.player.name}
             totalScore={
               totalScores.get(roundPlayer.player.id) ?? 0
+            }
+            previewScore={
+              previewScores.get(roundPlayer.player.id) ?? 0
             }
             round={round}
             value={roundPlayer.value}
