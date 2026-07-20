@@ -108,6 +108,7 @@ export default function SkullKingPage() {
       lootAlliances,
       isGameStarted,
       isGameFinished,
+      updatedAt: Date.now(),
     });
   }, [
     players,
@@ -190,121 +191,123 @@ export default function SkullKingPage() {
     });
   }
 
-  if (!isStorageLoaded) {
-    return (
-      <main className="min-h-screen bg-board-bg p-6">
-        <p className="mx-auto w-full max-w-[393px]">게임을 불러오는 중입니다...</p>
-      </main>
-    );
-  }
-
-  if (!isGameStarted) {
-    return (
-      <div className="min-h-screen bg-board-bg">
-        <main className="mx-auto w-full max-w-[393px] p-6">
-          <Header />
-
-          <GameSetup
-            onStart={handleStartGame}
-          />
-        </main>
-      </div>
-    );
-  }
-
-  if (isGameFinished) {
-    return (
-      <div className="min-h-screen bg-board-bg">
-        <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6">
-          <Header />
-          <h1 className="text-[32px] leading-[39px] font-bold tracking-[-0.02em] text-board-text">게임 종료</h1>
-          <h2 className="text-xl leading-6 font-bold text-board-text">축하합니다!</h2>
-          <ol className="flex flex-col text-xl leading-6 text-board-text">
-            {standings.map((player) => (
-              <li key={player.playerId} className={player.rank === 1 ? "font-bold" : player.rank < 4 ? "font-semibold" : "font-normal text-board-muted"}>
-                {player.rank}. {player.playerName} {player.totalScore}점
-              </li>
-            ))}
-          </ol>
-          <button type="button" onClick={handlePlayAgain} className="h-[35px] w-full rounded-xl bg-board-primary px-4 text-base font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary">한 판 더?</button>
-          <button type="button" onClick={handleGoHome} className="h-[35px] w-full rounded-xl bg-board-primary px-4 text-base font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary">홈으로</button>
-          <RoundHistory
-            players={players.map(
-              (roundPlayer) => roundPlayer.player
-            )}
-            results={roundResults}
-          />
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-board-bg">
       <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-board-text">
         <Header />
-
-        {!isGameFinished && (
-          <RoundForm
-            round={currentRound}
-            players={players}
-            totalScores={totalScores}
-            lootAlliances={lootAlliances}
-            onPlayersChange={setPlayers}
-            onLootAlliancesChange={setLootAlliances}
-            onSubmit={handleSubmit}
+  
+        {!isGameStarted ? (
+          <GameSetup
+            onStart={handleStartGame}
           />
-        )}
-
-        {roundResults.length > 0 && (
-          <section className="rounded-2xl border border-board-border bg-board-surface p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
-            <h2 className="text-xl font-semibold">
-              {isGameFinished ? "최종 순위" : "현재 순위"}
-            </h2>
-
-            <ol className="mt-4 flex flex-col gap-2">
-              {standings.map((player, index) => (
-                <li
-                  key={player.playerId}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${index === 0 ? "bg-board-primary-soft" : "bg-board-secondary"}`}
-                >
-                  <span className="font-semibold">
-                    {player.rank}. {player.playerName}
-                  </span>
-                  <strong>{player.totalScore}점</strong>
-                </li>
-              ))}
-            </ol>
-
-            {isGameFinished && (
-              <div className="flex flex-col gap-3">
+        ) : (
+          <>
+            {isGameFinished ? (
+              <>
+                <h1 className="text-[32px] font-bold tracking-[-0.02em]">
+                  게임 종료
+                </h1>
+  
+                <h2 className="text-xl font-bold">
+                  축하합니다!
+                </h2>
+  
+                <ol className="flex flex-col text-xl">
+                  {standings.map((player) => (
+                    <li
+                      key={player.playerId}
+                      className={
+                        player.rank === 1
+                          ? "font-bold"
+                          : player.rank < 4
+                            ? "font-semibold"
+                            : "font-normal text-board-muted"
+                      }
+                    >
+                      {player.rank}. {player.playerName}{" "}
+                      {player.totalScore}점
+                    </li>
+                  ))}
+                </ol>
+  
                 <button
                   type="button"
                   onClick={handlePlayAgain}
-                  className="mt-4 h-11 w-full rounded-xl bg-board-primary font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary"
+                  className="h-[35px] rounded-xl bg-board-primary text-white"
                 >
                   한 판 더?
                 </button>
-
+  
                 <button
                   type="button"
                   onClick={handleGoHome}
-                  className="mt-4 h-11 w-full rounded-xl bg-board-primary font-semibold text-white transition-colors hover:bg-board-primary-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary"
+                  className="h-[35px] rounded-xl bg-board-primary text-white"
                 >
                   홈으로
                 </button>
-              </div>
+  
+                <RoundHistory
+                  players={players.map(
+                    (roundPlayer) => roundPlayer.player
+                  )}
+                  results={roundResults}
+                />
+              </>
+            ) : (
+              <>
+                <RoundForm
+                  round={currentRound}
+                  players={players}
+                  totalScores={totalScores}
+                  lootAlliances={lootAlliances}
+                  onPlayersChange={setPlayers}
+                  onLootAlliancesChange={setLootAlliances}
+                  onSubmit={handleSubmit}
+                />
+  
+                {roundResults.length > 0 && (
+                  <>
+                    <section className="rounded-2xl border border-board-border bg-board-surface p-5 shadow-[0_2px_8px_rgba(0,0,0,0.08)]">
+                      <h2 className="text-xl font-semibold">
+                        현재 순위
+                      </h2>
+  
+                      <ol className="mt-4 flex flex-col gap-2">
+                        {standings.map((player, index) => (
+                          <li
+                            key={player.playerId}
+                            className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${
+                              index === 0
+                                ? "bg-board-primary-soft"
+                                : "bg-board-secondary"
+                            }`}
+                          >
+                            <span className="font-semibold">
+                              {player.rank}. {player.playerName}
+                            </span>
+  
+                            <strong>
+                              {player.totalScore}점
+                            </strong>
+                          </li>
+                        ))}
+                      </ol>
+                    </section>
+  
+                    <RoundHistory
+                      players={players.map(
+                        (roundPlayer) =>
+                          roundPlayer.player
+                      )}
+                      results={roundResults}
+                    />
+                  </>
+                )}
+              </>
             )}
-          </section>
-        )}
-
-        {roundResults.length > 0 && (
-          <RoundHistory
-            players={players.map((roundPlayer) => roundPlayer.player)}
-            results={roundResults}
-          />
+          </>
         )}
       </main>
     </div>
-  );
+  ); 
 }

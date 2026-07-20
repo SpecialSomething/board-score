@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Header() {
   return (
-    <header className="mb-6">
+    <header>
       <Link href="/">
         <h1 className="text-[32px] font-bold text-board-text transition-colors hover:text-board-primary">
           Board Score

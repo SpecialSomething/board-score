@@ -86,4 +86,5 @@ export type SkullKingGameState = {
   lootAlliances: LootAlliance[];
   isGameStarted: boolean;
   isGameFinished: boolean;
+  updatedAt: number;
 };
