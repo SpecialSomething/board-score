@@ -6,8 +6,6 @@ import type {
   SkullKingPlayerRoundInput,
 } from "../types";
 
-import LootAllianceForm from "./LootAllianceForm";
-
 import PlayerCard from "./PlayerCard";
 
 import { calculateSkullKingRound } from "../calculator";
@@ -73,7 +71,11 @@ export default function RoundForm({
         {players.map((roundPlayer, index) => (
           <PlayerCard
             key={roundPlayer.player.id}
+            playerId={roundPlayer.player.id}
             playerName={roundPlayer.player.name}
+            allPlayers={players.map(p => p.player)}
+            lootAlliances={lootAlliances}
+            onLootAlliancesChange={onLootAlliancesChange}
             totalScore={
               totalScores.get(roundPlayer.player.id) ?? 0
             }
@@ -88,12 +90,6 @@ export default function RoundForm({
         ))}
       </div>
 
-      <LootAllianceForm
-        players={players.map((roundPlayer) => roundPlayer.player)}
-        value={lootAlliances}
-        onChange={onLootAlliancesChange}
-        disabled={disabled}
-      />
 
       <button
         type="button"

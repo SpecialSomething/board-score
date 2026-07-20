@@ -20,8 +20,8 @@ export type SkullKingPlayerRoundInput = {
 
 // 약탈품 카드를 얻었을 때 약탈품을 낸 사람과 가져간 사람이 동맹이 되고, 그 동맹을 나타내는 타입
 export type LootAlliance = {
-  playerId: PlayerId;
-  partnerId: PlayerId;
+  receiverId: PlayerId;
+  giverId: PlayerId;
 };
 
 // 각 라운드에 대한 정보들을 저장해두는 타입

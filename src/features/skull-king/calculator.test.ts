@@ -183,8 +183,8 @@ describe("calculateSkullKingRound", () => {
                 ],
                 lootAlliances: [
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-b',
+                        receiverId: 'player-a',
+                        giverId: 'player-b',
                     },
                 ],
             };
@@ -217,8 +217,8 @@ describe("calculateSkullKingRound", () => {
                 ],
                 lootAlliances: [
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-b',
+                        receiverId: 'player-a',
+                        giverId: 'player-b',
                     },
                 ],
             };
@@ -251,12 +251,12 @@ describe("calculateSkullKingRound", () => {
                 ],
                 lootAlliances: [
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-b',
+                        receiverId: 'player-a',
+                        giverId: 'player-b',
                     },
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-b',
+                        receiverId: 'player-a',
+                        giverId: 'player-b',
                     },
                 ],
             };
@@ -322,16 +322,16 @@ describe("calculateSkullKingRound", () => {
                 ],
                 lootAlliances: [
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-b',
+                        receiverId: 'player-a',
+                        giverId: 'player-b',
                     },
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-b',
+                        receiverId: 'player-a',
+                        giverId: 'player-b',
                     },
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-b',
+                        receiverId: 'player-a',
+                        giverId: 'player-b',
                     },
                 ],
             };
@@ -349,8 +349,8 @@ describe("calculateSkullKingRound", () => {
                 ],
                 lootAlliances: [
                     {
-                        playerId: 'player-a',
-                        partnerId: 'unknown-player',
+                        receiverId: 'player-a',
+                        giverId: 'unknown-player',
                     },
                 ],
             };
@@ -368,8 +368,8 @@ describe("calculateSkullKingRound", () => {
                 ],
                 lootAlliances: [
                     {
-                        playerId: 'player-a',
-                        partnerId: 'player-a',
+                        receiverId: 'player-a',
+                        giverId: 'player-a',
                     },
                 ],
             };
