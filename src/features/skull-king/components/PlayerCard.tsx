@@ -1,13 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-import type { SkullKingPlayerRoundInput } from "../types";
+import type { 
+  SkullKingPlayerRoundInput,
+  LootAlliance,
+  Player,
+  PlayerId
+} from "../types";
+
 import BonusSection from "./BonusSection";
+
 import NumberSelector from "./NumberSelector";
 
+import LootAllianceSection from "./LootAllianceSection";
+
 type PlayerCardProps = {
+  playerId: PlayerId;
   playerName: string;
+  allPlayers: Player[];
+  lootAlliances: LootAlliance[];
+  onLootAlliancesChange: (lootAlliances: LootAlliance[]) => void;
   totalScore: number;
   previewScore: number;
   round: number;
@@ -17,7 +30,11 @@ type PlayerCardProps = {
 };
 
 export default function PlayerCard({
+  playerId,
   playerName,
+  allPlayers,
+  lootAlliances,
+  onLootAlliancesChange,
   totalScore,
   previewScore,
   round,
@@ -26,6 +43,14 @@ export default function PlayerCard({
   disabled = false,
 }: PlayerCardProps) {
   const [isBonusOpen, setIsBonusOpen] = useState(false);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setIsBonusOpen(false);
+    }, 400);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [round]);
 
   function clamp(amount: number, min: number, max: number): number {
     return Math.min(Math.max(amount, min), max);
@@ -94,16 +119,26 @@ export default function PlayerCard({
       </button>
 
       {isBonusOpen && (
-        <BonusSection
-          value={value.bonuses}
-          onChange={(bonuses) =>
-            onChange({
-              ...value,
-              bonuses,
-            })
-          }
-          disabled={disabled}
-        />
+        <div className= "flex flex-col gap-4">
+          <BonusSection
+            value={value.bonuses}
+            onChange={(bonuses) =>
+              onChange({
+                ...value,
+                bonuses,
+              })
+            }
+            disabled={disabled}
+          />
+
+          <LootAllianceSection
+            currentPlayerId={playerId}
+            allPlayers={allPlayers}
+            lootAlliances={lootAlliances}
+            onChange={onLootAlliancesChange}
+            disabled={disabled}
+          />
+        </div>
       )}
     </section>
   );

@@ -102,27 +102,27 @@ function calculateLootBonuses(
     // alliences에 저장된 동맹 정보를 for문으로 순회함
     for (const alliance of alliances) {
         // playerMap에서 플레이어의 정보를 찾아 player, partner에 할당함
-        const player = playerMap.get(alliance.playerId);
-        const partner = playerMap.get(alliance.partnerId);
+        const receiver = playerMap.get(alliance.receiverId);
+        const giver = playerMap.get(alliance.giverId);
 
         // 두 명 다 못 찾았으면 넘어감
-        if (!player || !partner) {
+        if (!receiver || !giver) {
             continue;
         }
 
         // 다 찾았을 경우 두 명 다 승수 맞추기를 성공했는지 확인함
-        if (isBidSuccess(player) && isBidSuccess(partner)) {
+        if (isBidSuccess(receiver) && isBidSuccess(giver)) {
             // 둘 다 맞추기를 성공했으면 lootBonuses에 20점을 더함
             lootBonuses.set(
-                player.playerId,
-                (lootBonuses.get(player.playerId) ?? 0) + LOOT_ALLIANCE_BONUS    
+                receiver.playerId,
+                (lootBonuses.get(receiver.playerId) ?? 0) + LOOT_ALLIANCE_BONUS    
                 // (a ?? 0) 문법은 맨 처음 0으로 초기화 했지만
                 // 일반적으로 typescript에서 이 사실을 모르기 때문에
                 // a가 몇인지 모르면 0으로 생각하라는 문법임
             );
             lootBonuses.set(
-                partner.playerId,
-                (lootBonuses.get(partner.playerId) ?? 0) + LOOT_ALLIANCE_BONUS
+                giver.playerId,
+                (lootBonuses.get(giver.playerId) ?? 0) + LOOT_ALLIANCE_BONUS
             );
         }
     }
@@ -140,9 +140,9 @@ function calculateLootBonuses(
 //   2-3. tricks는 0 이상 round 수 이하여야 함
 // 3. 동맹 검증
 //   3-1. 동맹은 최대 2개여야 함
-//   3-2. playerId가 실제 플레이어 목록에 존재해야 함
-//   3-3. partnerId가 실제 플에이어 목록에 존재해야 함
-//   3-4. playerId와 partnerId가 같지 않아야 함
+//   3-2. receiverId가 실제 플레이어 목록에 존재해야 함
+//   3-3. giverId가 실제 플에이어 목록에 존재해야 함
+//   3-4. receiverId와 giverId가 같지 않아야 함
 // 4. 보너스 검증
 //   4-1. 일반 색깔 14는 0개 이상 3개 이하여야 함
 //   4-2. 인어 획득 개수는 0개 이상 2개 이하여야 함
@@ -209,18 +209,18 @@ function validateRoundInput(
 
     // 모든 동맹을 순회함
     for (const alliance of input.lootAlliances) {
-        // 3-2. playerId가 실제 플레이어 목록에 존재해야 함 -> 없을 경우 오류!
-        if (!playerIds.has(alliance.playerId)) {
+        // 3-2. receiverId가 실제 플레이어 목록에 존재해야 함 -> 없을 경우 오류!
+        if (!playerIds.has(alliance.receiverId)) {
             throw new Error("Invalid loot alliance playerId");
         }
         
-        // 3-3. partnerId가 실제 플에이어 목록에 존재해야 함 -> 없을 경우 오류!
-        if (!playerIds.has(alliance.partnerId)) {
+        // 3-3. giverId가 실제 플에이어 목록에 존재해야 함 -> 없을 경우 오류!
+        if (!playerIds.has(alliance.giverId)) {
             throw new Error("Invalid loot alliance partnerId");
         }
 
-        // 3-4. playerId와 partnerId가 같지 않아야 함 -> 같을 경우 오류!
-        if (alliance.playerId === alliance.partnerId) {
+        // 3-4. receiverId와 giverId가 같지 않아야 함 -> 같을 경우 오류!
+        if (alliance.receiverId === alliance.giverId) {
             throw new Error("Loot alliance cannot be self alliance");
         }
     }
