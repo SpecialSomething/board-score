@@ -56,7 +56,7 @@ export default function LootAllianceSection({
   function addLootAlliance() {
     if (disabled || 
         selectedReceiverId === null ||
-        lootAlliances.length >= MAX_LOOT_ALLIANCES
+        isAllianceLimitReached
     ) {
       return;
     }
@@ -110,7 +110,7 @@ export default function LootAllianceSection({
               key={player.id}
               type="button"
               disabled={disabled}
-              aria-pressed={isSelected}
+              aria-pressed={isSelected || isAllianceLimitReached}
               onClick={() =>
                 setSelectedReceiverId((currentId) =>
                   currentId === player.id ? null : player.id
@@ -133,7 +133,7 @@ export default function LootAllianceSection({
         disabled={
           disabled || 
           selectedReceiverId === null ||
-          lootAlliances.length >= MAX_LOOT_ALLIANCES
+          isAllianceLimitReached
         }
         onClick={addLootAlliance}
         className="h-10 w-full rounded-lg bg-board-primary font-semibold text-white transition-colors hover:bg-board-primary-hover disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text"
@@ -148,7 +148,7 @@ export default function LootAllianceSection({
           </p>
 
           {currentPlayerAlliances.map(
-            ({ alliance, index }, displayIndex) => (
+            ({ alliance, index }) => (
               <div
                 key={`${alliance.giverId}-${alliance.receiverId}-${index}`}
                 className="flex items-center justify-between rounded-lg bg-board-primary-soft px-3 py-2"
