@@ -41,3 +41,17 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+input[type="number"].hide-number-spin {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+}
+
+input[type="number"].hide-number-spin::-webkit-inner-spin-button,
+input[type="number"].hide-number-spin::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  display: none;
+}

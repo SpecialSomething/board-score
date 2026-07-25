@@ -53,7 +53,13 @@ export default function RoundForm({
   onSubmit,
 }: RoundFormProps) {
   const [input, setInput] = useState<TichuRoundInput>(
-    () => createTichuRoundInput(round),
+    () => ({
+      ...createTichuRoundInput(round),
+      cardScores: {
+        1: 0,
+        2: NORMAL_ROUND_TOTAL_SCORE
+      },
+    }),
   );
   const [error, setError] = useState("");
 
@@ -212,7 +218,7 @@ export default function RoundForm({
                       );
                     }
                   }}
-                  className="h-10 w-24 rounded-xl bg-board-surface px-2 text-center text-base font-semibold outline-none focus:ring-2 focus:ring-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text"
+                  className="hide-number-spin h-10 w-24 rounded-xl bg-board-surface px-2 text-center text-base font-semibold outline-none focus:ring-2 focus:ring-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text"
                 />
 
                 <button

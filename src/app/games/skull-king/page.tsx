@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -38,9 +38,14 @@ import {
   resetRoundPlayerInputs,
 } from "@/features/skull-king/factories";
 
+import { useSearchParams } from "next/navigation";
 
-export default function SkullKingPage() {
+function SkullKingPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const shouldStartNewGame =
+      searchParams.get("new") === "1";
 
   const [players, setPlayers] = useState<RoundPlayer[]>([]);
 
@@ -67,12 +72,8 @@ export default function SkullKingPage() {
 
 
   useEffect(() => {
-    const searchParams = new URLSearchParams(
-      window.location.search
-    );
 
-    const shouldStartNewGame =
-      searchParams.get("new") === "1";
+    
 
     if (shouldStartNewGame) {
       // 기존 저장 게임을 불러오지 않고 설정 화면을 표시한다.
@@ -95,7 +96,7 @@ export default function SkullKingPage() {
     }
 
     setIsStorageLoaded(true);
-  }, []);
+  }, [shouldStartNewGame]);
 
   useEffect(() => {
     if (!isStorageLoaded || !isGameStarted) {
@@ -192,6 +193,7 @@ export default function SkullKingPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-board-bg">
       <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-board-text">
         <Header />
@@ -309,5 +311,15 @@ export default function SkullKingPage() {
         )}
       </main>
     </div>
+    </>
+  );
+
+}
+
+export default function SkullKingPage() {
+  return (
+    <Suspense fallback={null}>
+      <SkullKingPageContent/>
+    </Suspense>
   ); 
 }

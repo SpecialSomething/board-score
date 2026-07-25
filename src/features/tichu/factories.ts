@@ -1,3 +1,4 @@
+import { NORMAL_ROUND_TOTAL_SCORE } from "./constants";
 import type {
   TichuDeclaration,
   TichuDeclarationType,
@@ -54,7 +55,7 @@ export function createInitialTichuGameResult(): TichuGameResult {
   return {
     totalScores: {
       1: 0,
-      2: 0,
+      2: NORMAL_ROUND_TOTAL_SCORE,
     },
     winnerTeamId: null,
     isFinished: false,

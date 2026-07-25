@@ -1,16 +1,24 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, Suspense } from "react";
+
 import { useRouter } from "next/navigation";
 
 import Header from "@/components/Header";
 
 import { calculateTichuRound } from "@/features/tichu/calculator";
+
 import GameSetup from "@/features/tichu/components/GameSetup";
+
 import RoundForm from "@/features/tichu/components/RoundForm";
+
 import RoundHistory from "@/features/tichu/components/RoundHistory";
+
 import ScoreBoard from "@/features/tichu/components/ScoreBoard";
+
 import { calculateTichuGame } from "@/features/tichu/game";
+
+import { useSearchParams } from "next/navigation";
 
 import type {
   TichuPlayer,
@@ -29,8 +37,11 @@ type TichuSetup = {
   targetScore: number;
 };
 
-export default function TichuPage() {
+function TichuPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const shouldStartNewGame = searchParams.get("new") === "1";
 
   const [isStorageLoaded, setIsStorageLoaded] =
     useState(false);
@@ -55,8 +66,15 @@ export default function TichuPage() {
     );
   }, [roundResults, setup]);
 
+  
+
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+      if (shouldStartNewGame) {
+      clearTichuGame();
+      setIsStorageLoaded(true);
+      return;
+    }
     const savedGame = loadTichuGame();
   
     if (
@@ -74,7 +92,7 @@ export default function TichuPage() {
     }
   
     setIsStorageLoaded(true);
-  }, []);
+  }, [shouldStartNewGame]);
 
   useEffect(() => {
     if (
@@ -188,6 +206,7 @@ export default function TichuPage() {
   }
 
   return (
+    <>
     <div className="min-h-screen bg-board-bg">
       <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-board-text">
         <Header />
@@ -299,5 +318,14 @@ export default function TichuPage() {
         )}
       </main>
     </div>
+    </>
+  );
+}
+
+export default function TichuPage() {
+  return (
+    <Suspense fallback={null}>
+      <TichuPageContent />
+    </Suspense>
   );
 }

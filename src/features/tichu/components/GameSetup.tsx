@@ -209,7 +209,8 @@ export default function GameSetup({
 
           <input
             id="target-score"
-            type="number"
+            type="text"
+            inputMode="numeric"
             min={1}
             step={100}
             value={targetScore || ""}
