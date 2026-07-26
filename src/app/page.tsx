@@ -12,8 +12,10 @@ import type { TichuGameState } from "@/features/tichu/types";
 
 import Header from "@/components/Header";
 
-const SKULL_KING_ROUTE = "/games/skull-king";
-const NEW_SKULL_KING_ROUTE = "/games/skull-king?new=1";
+const SKULL_KING_SELECT_ROUTE = "/games/skull-king";
+const SKULL_KING_SINGLE_ROUTE = "/games/skull-king/single"
+//const SKULL_KING_MULTI_ROUTE = "/games/skull-king/multi"
+
 
 const TICHU_ROUTE = "/games/tichu";
 const NEW_TICHU_ROUTE = "/games/tichu?new=1";
@@ -70,7 +72,7 @@ function GameCard({ name, koreanName, detail, href }: GameCardProps) {
 function SkullKingRecentGameCard({ game }: { game: SkullKingGameState }) {
   return (
     <Link
-      href={SKULL_KING_ROUTE}
+      href={SKULL_KING_SINGLE_ROUTE}
       className={`${CARD_CLASS} border border-board-border bg-board-surface text-board-text transition-transform hover:border-board-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary active:scale-[0.99]`}
     >
       <p className="text-xl leading-normal">Skull King 스컬킹</p>
@@ -183,7 +185,7 @@ export default function Home() {
       <section className="mt-6" aria-labelledby="available-games-heading">
         <h2 id="available-games-heading" className="text-xl leading-normal text-board-text">플레이할 게임</h2>
         <div className="mt-5 flex flex-col gap-6">
-          <GameCard name="Skull King" koreanName="스컬킹" detail="2 ~ 8인" href={NEW_SKULL_KING_ROUTE} />
+          <GameCard name="Skull King" koreanName="스컬킹" detail="2 ~ 8인" href={SKULL_KING_SELECT_ROUTE} />
           <GameCard name="Tichu" koreanName="티츄" detail="4인" href={NEW_TICHU_ROUTE} />
           <GameCard name="Wizard" koreanName="위자드" detail="Coming Soon" />
         </div>

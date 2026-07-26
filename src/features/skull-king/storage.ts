@@ -20,7 +20,11 @@ export function loadSkullKingGame():
   }
 
   try {
-    return JSON.parse(savedGame) as SkullKingGameState;
+    const parsedGame = JSON.parse(savedGame) as SkullKingGameState;
+    return {
+      ...parsedGame,
+      inputMode: parsedGame.inputMode ?? "single-device",
+    };
   } catch {
     localStorage.removeItem(STORAGE_KEY);
     return null;
