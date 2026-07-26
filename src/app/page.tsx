@@ -116,38 +116,37 @@ export default function Home() {
     const skullKingGame = loadSkullKingGame();
     const tichuGame = loadTichuGame();
 
-    const games: RecentGame[] = [];
-
-    if (
-      skullKingGame?.isGameStarted &&
-      !skullKingGame.isGameFinished
-    ) {
-      games.push({
+    const savedGames: RecentGame[] = [];
+  
+    if (skullKingGame) {
+      savedGames.push({
         type: "skull-king",
         game: skullKingGame,
       });
     }
   
-    if (
-      tichuGame?.isGameStarted &&
-      !tichuGame.isGameFinished
-    ) {
-      games.push({
+    if (tichuGame) {
+      savedGames.push({
         type: "tichu",
         game: tichuGame,
       });
     }
-
-    const getUpdateAt = (
-      game: { updatedAt?: number},
-    ) => game.updatedAt ?? 0;
   
-    const latestGame = games.sort(
+    const latestSavedGame = savedGames.sort(
       (a, b) =>
-        getUpdateAt(b.game) - getUpdateAt(a.game),
+        (b.game.updatedAt ?? 0) -
+        (a.game.updatedAt ?? 0),
     )[0];
   
-    setRecentGame(latestGame ?? null);
+    if (
+      latestSavedGame &&
+      latestSavedGame.game.isGameStarted &&
+      !latestSavedGame.game.isGameFinished
+    ) {
+      setRecentGame(latestSavedGame);
+    } else {
+      setRecentGame(null);
+    }
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
