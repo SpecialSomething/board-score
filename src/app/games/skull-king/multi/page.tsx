@@ -1,20 +1,30 @@
-import Header from "@/components/Header";
 import Link from "next/link";
+
+import Header from "@/components/Header";
 
 export default function SkullKingMultiPage() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-4 px-4 py-6">
-      <Header 
-          title="각자 입력하기"
-          description="각자 계산하는 방식입니다. 추가할 예정입니다."
+    <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
+      <Header
+        title="각자 입력하기"
+        description="방을 만들거나 기존 방에 참가하세요."
       />
 
-      <Link
-        href="/games/skull-king"
-        className="rounded-xl bg-board-primary px-4 py-3 text-center font-semibold text-white"
-      >
-        계산 방식 선택으로 돌아가기
-      </Link>
+      <div className="mt-8 flex flex-col gap-4">
+        <Link
+          href="/games/skull-king/multi/create"
+          className="flex h-12 items-center justify-center rounded-xl bg-board-primary font-semibold text-white"
+        >
+          방 만들기
+        </Link>
+
+        <Link
+          href="/games/skull-king/multi/join"
+          className="flex h-12 items-center justify-center rounded-xl border border-board-primary bg-board-surface font-semibold text-board-primary"
+        >
+          방 참가하기
+        </Link>
+      </div>
     </main>
   );
 }

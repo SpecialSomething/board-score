@@ -12,9 +12,17 @@ import type { TichuGameState } from "@/features/tichu/types";
 
 import Header from "@/components/Header";
 
+import {
+  loadMultiplayerSession,
+} from "@/features/skull-king/multiplayer/session";
+
+import {
+  getSkullKingRoom,
+  getSkullKingRoomPlayers,
+} from "@/features/skull-king/multiplayer/rooms";
+
 const SKULL_KING_SELECT_ROUTE = "/games/skull-king";
-const SKULL_KING_SINGLE_ROUTE = "/games/skull-king/single"
-//const SKULL_KING_MULTI_ROUTE = "/games/skull-king/multi"
+const SKULL_KING_SINGLE_ROUTE = "/games/skull-king/single";
 
 
 const TICHU_ROUTE = "/games/tichu";
@@ -31,8 +39,16 @@ type GameCardProps = {
 
 type RecentGame = 
   | {
-      type: "skull-king";
+      type: "skull-king-single";
       game: SkullKingGameState;
+    }
+  | {
+      type: "skull-king-multi";
+      roomId: string;
+      roomCode: string;
+      currentRound: number;
+      playerCount: number;
+      updatedAt: number;
     }
   | {
       type: "tichu";
@@ -84,6 +100,40 @@ function SkullKingRecentGameCard({ game }: { game: SkullKingGameState }) {
   );
 }
 
+type SkullKingMultiRecentGameCardProps = {
+  roomId: string;
+  roomCode: string;
+  currentRound: number;
+  playerCount: number;
+};
+
+function SkullKingMultiRecentGameCard({
+  roomId,
+  roomCode,
+  currentRound,
+  playerCount,
+}: SkullKingMultiRecentGameCardProps) {
+  return (
+    <Link
+      href={`/games/skull-king/multi/${roomId}`}
+      className={`${CARD_CLASS} border border-board-border bg-board-surface text-board-text transition-transform hover:border-board-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary active:scale-[0.99]`}
+    >
+      <p className="text-xl leading-normal">
+        Skull King 스컬킹
+      </p>
+
+      <div className="mt-5 text-xl leading-normal">
+        <p>각자 입력하기</p>
+        <p>방 코드 : {roomCode}</p>
+        <p>
+          Round : {currentRound} / 10
+        </p>
+        <p>인원 : {playerCount}명</p>
+      </div>
+    </Link>
+  );
+}
+
 function TichuRecentGameCard({ game }: { game: TichuGameState }) {
   const currentRound =
     game.roundResults.length + 1;
@@ -113,44 +163,121 @@ function TichuRecentGameCard({ game }: { game: TichuGameState }) {
 export default function Home() {
   const [recentGame, setRecentGame] = useState<RecentGame | null>(null);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    const skullKingGame = loadSkullKingGame();
-    const tichuGame = loadTichuGame();
+    let isCancelled = false;
+  
+    async function loadRecentGame() {
+      const skullKingSingleGame =
+        loadSkullKingGame();
+  
+      const tichuGame =
+        loadTichuGame();
+  
+      const multiplayerSession =
+        loadMultiplayerSession();
+  
+      const savedGames: RecentGame[] = [];
+  
+      if (
+        skullKingSingleGame &&
+        skullKingSingleGame.isGameStarted &&
+        !skullKingSingleGame.isGameFinished
+      ) {
+        savedGames.push({
+          type: "skull-king-single",
+          game: skullKingSingleGame,
+        });
+      }
+  
+      if (
+        tichuGame &&
+        tichuGame.isGameStarted &&
+        !tichuGame.isGameFinished
+      ) {
+        savedGames.push({
+          type: "tichu",
+          game: tichuGame,
+        });
+      }
+  
+      if (multiplayerSession) {
+        try {
+          const [room, players] =
+            await Promise.all([
+              getSkullKingRoom(
+                multiplayerSession.roomId,
+              ),
+              getSkullKingRoomPlayers(
+                multiplayerSession.roomId,
+              ),
+            ]);
 
-    const savedGames: RecentGame[] = [];
+          const currentPlayerExists =
+            players.some(
+              (player) =>
+                player.id ===
+                multiplayerSession.playerId,
+            );
+
+          const isActiveRoom =
+            room.status !== "finished" &&
+            room.status !== "cancelled";
+
+          if (
+            currentPlayerExists &&
+            isActiveRoom
+          ) {
+            savedGames.push({
+              type: "skull-king-multi",
+              roomId: room.id,
+              roomCode: room.code,
+              currentRound: room.currentRound,
+              playerCount: players.length,
+              updatedAt: new Date(
+                room.updatedAt,
+              ).getTime(),
+            });
+          }
+        } catch (error) {
+          console.error(
+            "최근 멀티 게임을 불러오지 못했습니다.",
+            error,
+          );
+        }
+      }
   
-    if (skullKingGame) {
-      savedGames.push({
-        type: "skull-king",
-        game: skullKingGame,
-      });
+      const latestSavedGame =
+        savedGames.sort((a, b) => {
+          const getUpdatedAt = (
+            game: RecentGame,
+          ) => {
+            if (
+              game.type ===
+              "skull-king-multi"
+            ) {
+              return game.updatedAt;
+            }
+  
+            return game.game.updatedAt ?? 0;
+          };
+  
+          return (
+            getUpdatedAt(b) -
+            getUpdatedAt(a)
+          );
+        })[0] ?? null;
+  
+      if (!isCancelled) {
+        setRecentGame(latestSavedGame);
+      }
     }
   
-    if (tichuGame) {
-      savedGames.push({
-        type: "tichu",
-        game: tichuGame,
-      });
-    }
+    void loadRecentGame();
   
-    const latestSavedGame = savedGames.sort(
-      (a, b) =>
-        (b.game.updatedAt ?? 0) -
-        (a.game.updatedAt ?? 0),
-    )[0];
-  
-    if (
-      latestSavedGame &&
-      latestSavedGame.game.isGameStarted &&
-      !latestSavedGame.game.isGameFinished
-    ) {
-      setRecentGame(latestSavedGame);
-    } else {
-      setRecentGame(null);
-    }
+    return () => {
+      isCancelled = true;
+    };
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
@@ -169,11 +296,21 @@ export default function Home() {
           </h2>
       
           <div className="mt-4">
-            {recentGame.type === "skull-king" ? (
+            {recentGame.type === "skull-king-single" && (
               <SkullKingRecentGameCard
                 game={recentGame.game}
               />
-            ) : (
+            )}
+            {recentGame.type === "skull-king-multi" && (
+              <SkullKingMultiRecentGameCard
+                roomId={recentGame.roomId}
+                roomCode={recentGame.roomCode}
+                currentRound={recentGame.currentRound}
+                playerCount={recentGame.playerCount}
+              />
+            )}
+            
+            {recentGame.type === "tichu" && (
               <TichuRecentGameCard
                 game={recentGame.game}
               />

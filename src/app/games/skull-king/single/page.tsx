@@ -56,7 +56,6 @@ function SkullKingPageContent() {
     setIsGameStarted(true);
   }
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (shouldStartNewGame) {
       clearSkullKingGame();
@@ -77,7 +76,6 @@ function SkullKingPageContent() {
   
     setIsStorageLoaded(true);
   }, [shouldStartNewGame, router]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     if (!isStorageLoaded || !isGameStarted) {

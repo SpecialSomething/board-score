@@ -68,7 +68,6 @@ function TichuPageContent() {
 
   
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
       if (shouldStartNewGame) {
       clearTichuGame();
@@ -118,7 +117,6 @@ function TichuPageContent() {
     roundResults,
     setup,
   ]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleStartGame(
     players: TichuPlayer[],
