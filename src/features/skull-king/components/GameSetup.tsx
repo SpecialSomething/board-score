@@ -71,7 +71,7 @@ export default function GameSetup({ onStart }: GameSetupProps) {
   }
 
   return (
-      <section className="mt-6 flex w-full flex-col gap-4 font-sans text-board-text">
+      <section className="flex w-full flex-col gap-4 font-sans text-board-text">
         <header>
           <h1 className="text-[28px] font-bold leading-normal tracking-tight">
             Skull King 스컬킹

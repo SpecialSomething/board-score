@@ -86,4 +86,12 @@ export type SkullKingGameState = {
   lootAlliances: LootAlliance[];
   isGameStarted: boolean;
   isGameFinished: boolean;
+  updatedAt: number;
+
+  inputMode: SkullKingInputMode;
 };
+
+// 계산 방법에 대한 모드를 설정하는 타입
+export type SkullKingInputMode =
+  | "single-device"
+  | "multi-device";

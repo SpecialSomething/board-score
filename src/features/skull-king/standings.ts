@@ -1,5 +1,5 @@
 import type {
-  RoundPlayer,
+  Player,
   SkullKingRoundResult,
 } from "./types";
 
@@ -11,7 +11,7 @@ export type SkullKingStanding = {
 };
 
 export function calculateStandings(
-  players: RoundPlayer[],
+  players: Player[],
   roundResults: SkullKingRoundResult[]
 ): SkullKingStanding[] {
   const totalScores = new Map<string, number>();
@@ -29,11 +29,11 @@ export function calculateStandings(
   }
 
   const sortedStandings = players
-    .map((roundPlayer) => ({
-      playerId: roundPlayer.player.id,
-      playerName: roundPlayer.player.name,
+    .map((player) => ({
+      playerId: player.id,
+      playerName: player.name,
       totalScore:
-        totalScores.get(roundPlayer.player.id) ?? 0,
+        totalScores.get(player.id) ?? 0,
     }))
     .sort((a, b) => b.totalScore - a.totalScore);
 

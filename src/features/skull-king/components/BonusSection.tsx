@@ -14,12 +14,14 @@ type BonusSectionProps = {
   value: SkullKingBonusInput;
   onChange: (value: SkullKingBonusInput) => void;
   disabled?: boolean;
+  readOnly?: boolean;
 };
 
 export default function BonusSection({
   value,
   onChange,
   disabled = false,
+  readOnly = false,
 }: BonusSectionProps) {
   return (
     <div className="flex flex-col gap-4 pt-3">
@@ -36,6 +38,7 @@ export default function BonusSection({
             })
           }
           disabled={disabled}
+          readOnly={readOnly}
         />
         <div>
           <p className="mb-2 text-base font-semibold">검은색 14</p>
@@ -48,6 +51,7 @@ export default function BonusSection({
               })
             }
             disabled={disabled}
+            readOnly={readOnly}
           />
         </div>
       </section>
@@ -65,6 +69,7 @@ export default function BonusSection({
             })
           }
           disabled={disabled}
+          readOnly={readOnly}
         />
         <NumberSelector
           label="스컬 킹 → 해적"
@@ -77,6 +82,7 @@ export default function BonusSection({
             })
           }
           disabled={disabled}
+          readOnly={readOnly}
         />
         <div>
           <p className="mb-2 text-base font-semibold">인어 → 스컬 킹</p>
@@ -89,6 +95,7 @@ export default function BonusSection({
               })
             }
             disabled={disabled}
+            readOnly={readOnly}
           />
         </div>
       </section>

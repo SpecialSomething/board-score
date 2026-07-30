@@ -2,14 +2,36 @@ type BinarySelectorProps = {
   value: boolean;
   onChange: (value: boolean) => void;
   disabled: boolean;
+  readOnly: boolean;
 };
+
+
 
 export default function BinarySelector({ 
     value, 
     onChange, 
-    disabled = false 
+    disabled = false,
+    readOnly = false, 
 }: BinarySelectorProps) {
-  const baseClass = "h-[35px] min-w-[70px] rounded-xl px-3 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text";
+  const baseClass = "h-[35px] min-w-[70px] rounded-xl px-3 text-base font-semibold transition-colors disabled:cursor-not-allowed";
+
+  const getButtonClass = (
+    isSelected: boolean,
+  ) => {
+    if (disabled) {
+      return "bg-board-disabled text-board-disabled-text";
+    }
+  
+    if (readOnly) {
+      return isSelected
+        ? "bg-board-primary text-white"
+        : "bg-board-disabled text-board-disabled-text";
+    }
+  
+    return isSelected
+      ? "bg-board-primary text-white"
+      : "bg-board-secondary text-board-text hover:bg-board-primary-soft";
+  };
 
   return (
     <div className="flex gap-2">
@@ -17,9 +39,18 @@ export default function BinarySelector({
         type="button"
         aria-pressed={!value}
         disabled={disabled}
-        onClick={() => onChange(false)}
-        className={`${baseClass} ${
-          !value ? "bg-board-primary text-white" : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
+        aria-disabled={disabled || readOnly}
+        onClick={() => {
+          if (disabled || readOnly) {
+            return;
+          }
+      
+          onChange(false);
+        }}
+        className={`${baseClass} ${getButtonClass(!value)} ${
+          disabled || readOnly
+            ? "cursor-not-allowed"
+            : ""
         }`}
       >
         미획득
@@ -28,9 +59,18 @@ export default function BinarySelector({
         type="button"
         aria-pressed={value}
         disabled={disabled}
-        onClick={() => onChange(true)}
-        className={`h-[35px] w-[70px] rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text ${
-          value ? "bg-board-primary text-white" : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
+        aria-disabled={disabled || readOnly}
+        onClick={() => {
+          if (disabled || readOnly) {
+            return;
+          }
+      
+          onChange(true);
+        }}
+        className={`${baseClass} ${getButtonClass(value)} ${
+          disabled || readOnly
+            ? "cursor-not-allowed"
+            : ""
         }`}
       >
         획득
