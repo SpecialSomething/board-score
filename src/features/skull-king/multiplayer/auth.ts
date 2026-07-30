@@ -8,15 +8,18 @@ export async function ensureAnonymousUser(): Promise<User> {
     error: getUserError,
   } = await supabase.auth.getUser();
 
-  if (getUserError) {
+  if (user) {
+    return user;
+  }
+
+  if (
+    getUserError &&
+    getUserError.name !== "AuthSessionMissingError"
+  ) {
     console.error(
       "기존 사용자 확인 중 오류가 발생했습니다.",
       getUserError,
     );
-  }
-
-  if (user) {
-    return user;
   }
 
   const {

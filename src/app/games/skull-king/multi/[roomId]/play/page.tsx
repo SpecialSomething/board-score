@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState, useRef, } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import {
-  advanceRoomToScoringIfReady,
   getRoundBids,
   getRoomBids,
   submitBid,
+  updateBidReady,
   type SkullKingBid,
 } from "@/features/skull-king/multiplayer/bids";
 
@@ -15,6 +15,7 @@ import {
   getSkullKingRoom,
   getSkullKingRoomPlayers,
   advanceSkullKingRoom,
+  updateSkullKingRoomStatus,
 } from "@/features/skull-king/multiplayer/rooms";
 
 import {
@@ -26,24 +27,51 @@ import type {
   SkullKingRoomPlayer,
   LocalSkullKingMultiplayerSession,
   SkullKingRoundSubmission,
+  SkullKingRoomLootAlliance,
 } from "@/features/skull-king/multiplayer/types";
 
 import {
   getRoundSubmissions,
   submitRoundSubmission,
   getRoomSubmissions,
+  updateRoundReady,
 } from "@/features/skull-king/multiplayer/round-submissions";
 
 import BonusSection from "@/features/skull-king/components/BonusSection";
 
+import LootAllianceSection from "@/features/skull-king/components/LootAllianceSection";
+
 import type { 
     SkullKingBonusInput,
     SkullKingRoundResult,
+    LootAlliance,
+    Player,
 } from "@/features/skull-king/types";
 
 import NumberSelector from "@/features/skull-king/components/NumberSelector";
 
 import { calculateSkullKingRound } from "@/features/skull-king/calculator";
+
+import { 
+  replacePlayerLootAlliances,
+  getRoomLootAlliances,
+  getRoundLootAlliances,
+} from "@/features/skull-king/multiplayer/loot-alliances";
+
+import { calculateStandings } from "@/features/skull-king/standings";
+
+import StandingsSection from "@/features/skull-king/components/StandingSection";
+
+import PlayerName from "@/features/skull-king/components/PlayerName";
+
+import GameResultScreen from "@/features/skull-king/components/GameResultScreen";
+
+import { 
+  clearRecentGame,
+  saveRecentGame,
+} from "@/features/recent-game/storage";
+
+
 
 export default function SkullKingMultiplayerPlayPage() {
   const params = useParams<{ roomId: string }>();
@@ -67,6 +95,20 @@ export default function SkullKingMultiplayerPlayPage() {
   ] = useState<SkullKingRoundSubmission[]>([]);
   const [roundSubmissions, setRoundSubmissions] =
     useState<SkullKingRoundSubmission[]>([]);
+  const [lootAlliances, setLootAlliances] =
+    useState<LootAlliance[]>([]);
+  const [
+    roundLootAlliances,
+    setRoundLootAlliances,
+  ] = useState<SkullKingRoomLootAlliance[]>(
+    [],
+  );
+  const [
+    allLootAlliances,
+    setAllLootAlliances,
+  ] = useState<SkullKingRoomLootAlliance[]>(
+    [],
+  );
 
 
   // 입력값
@@ -74,6 +116,7 @@ export default function SkullKingMultiplayerPlayPage() {
   const [tricks, setTricks] = useState(0);
   const bidInitializedRef = useRef(false);
   const roundResultInitializedRef = useRef(false);
+  const lootAlliancesInitializedRef =useRef(false);
   const [
     standardFourteensCount,
     setStandardFourteensCount,
@@ -153,23 +196,29 @@ export default function SkullKingMultiplayerPlayPage() {
         let nextRoundSubmissions: SkullKingRoundSubmission[] = [];
         let nextAllBids: SkullKingBid[] = [];
         let nextAllRoundSubmissions: SkullKingRoundSubmission[] = [];
+        let nextRoundLootAlliances: SkullKingRoomLootAlliance[] = [];
+        let nextAllLootAlliances: SkullKingRoomLootAlliance[] = [];
 
         if (
           nextRoom.status === "bidding" ||
           nextRoom.status === "scoring" ||
+          nextRoom.status === "round-result" ||
           nextRoom.status === "finished"
         ) {
           [
             nextAllBids,
             nextAllRoundSubmissions,
+            nextAllLootAlliances,
           ] = await Promise.all([
             getRoomBids(roomId),
             getRoomSubmissions(roomId),
+            getRoomLootAlliances(roomId),
           ]);
         }
         if (
           nextRoom.status === "bidding" ||
-          nextRoom.status === "scoring"
+          nextRoom.status === "scoring" ||
+          nextRoom.status === "round-result"
         ) {
           nextBids = await getRoundBids(
             roomId,
@@ -177,12 +226,23 @@ export default function SkullKingMultiplayerPlayPage() {
           );
         }
 
-        if (nextRoom.status === "scoring") {
-          nextRoundSubmissions =
-            await getRoundSubmissions(
+        if (
+          nextRoom.status === "scoring" ||
+          nextRoom.status === "round-result"
+        ) {
+          [
+            nextRoundSubmissions,
+            nextRoundLootAlliances,
+          ] = await Promise.all([
+            getRoundSubmissions(
               roomId,
               nextRoom.currentRound,
-            );
+            ),
+            getRoundLootAlliances(
+              roomId,
+              nextRoom.currentRound,
+            ),
+          ]);
         }
 
         setRoom(nextRoom);
@@ -191,6 +251,8 @@ export default function SkullKingMultiplayerPlayPage() {
         setRoundSubmissions(nextRoundSubmissions);
         setAllBids(nextAllBids);
         setAllRoundSubmissions(nextAllRoundSubmissions);
+        setRoundLootAlliances(nextRoundLootAlliances);
+        setAllLootAlliances(nextAllLootAlliances);
         setErrorMessage(null);
       } catch (error) {
         setErrorMessage(
@@ -205,6 +267,12 @@ export default function SkullKingMultiplayerPlayPage() {
     [roomId],
   );
 
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+    });
+  }, [room?.status, room?.currentRound]);
+
   /**
    * 첫 화면 진입 시 데이터를 불러옵니다.
    */
@@ -218,6 +286,22 @@ export default function SkullKingMultiplayerPlayPage() {
     isSessionLoaded,
     session,
     loadGameData,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isSessionLoaded ||
+      !session ||
+      session.roomId !== roomId
+    ) {
+      return;
+    }
+  
+    saveRecentGame("skull-king-multi");
+  }, [
+    isSessionLoaded,
+    session,
+    roomId,
   ]);
 
   /**
@@ -264,6 +348,8 @@ export default function SkullKingMultiplayerPlayPage() {
 
   const submittedBid = myBid?.bid;
 
+  const isBidReady = myBid?.is_ready ?? false;
+
   useEffect(() => {
     if (submittedBid === undefined) {
       return;
@@ -294,6 +380,42 @@ export default function SkullKingMultiplayerPlayPage() {
     );
   }, [roundSubmissions, session]);
 
+  const isRoundReady =
+  myRoundSubmission?.isReady ?? false;
+
+  const myRoundLootAlliances =
+    useMemo(() => {
+      if (!session) {
+        return [];
+      }
+  
+      return roundLootAlliances.filter(
+        (alliance) =>
+          alliance.createdByPlayerId ===
+          session.playerId,
+      );
+    }, [
+      roundLootAlliances,
+      session,
+    ]);
+
+  useEffect(() => {
+    if (
+      !session ||
+      !myRoundSubmission ||
+      lootAlliancesInitializedRef.current
+    ) {
+      return;
+    }
+  
+    lootAlliancesInitializedRef.current = true;
+  }, [
+    session,
+    myRoundSubmission,
+    myRoundLootAlliances,
+  ]);
+
+
   const bonusValue: SkullKingBonusInput = {
     standardFourteensCount,
     blackFourteenCaptured,
@@ -302,42 +424,106 @@ export default function SkullKingMultiplayerPlayPage() {
     skullKingCapturedByMermaid,
   };
 
+  const myEstimatedScore = useMemo(() => {
+    if (
+      !room ||
+      !session ||
+      myBid === null
+    ) {
+      return null;
+    }
+  
+    const result = calculateSkullKingRound({
+      round: room.currentRound,
+  
+      players: [
+        {
+          playerId: session.playerId,
+          bid: myBid.bid,
+          tricks,
+          bonuses: {
+            standardFourteensCount,
+            blackFourteenCaptured,
+            mermaidsCapturedByPirate,
+            piratesCapturedBySkullKing,
+            skullKingCapturedByMermaid,
+          },
+        },
+      ],
+  
+      /*
+       * 약탈품 동맹 점수는 상대의 라운드 성공 여부가
+       * 확정되어야 계산할 수 있으므로 예상 점수에서는 제외합니다.
+       */
+      lootAlliances: [],
+    });
+  
+    return (
+      result.players.find(
+        (player) =>
+          player.playerId === session.playerId,
+      )?.roundScore ?? null
+    );
+  }, [
+    room,
+    session,
+    myBid,
+    tricks,
+    standardFourteensCount,
+    blackFourteenCaptured,
+    mermaidsCapturedByPirate,
+    piratesCapturedBySkullKing,
+    skullKingCapturedByMermaid,
+  ]);
+
   /**
    * 플레이어 ID별 제출 여부를 빠르게 확인하기 위한 Set입니다.
    */
-  const submittedPlayerIds = useMemo(
+  const bidReadyPlayerIds = useMemo(
     () =>
       new Set(
-        bids.map((bid) => bid.player_id),
+        bids
+          .filter((bid) => bid.is_ready)
+          .map((bid) => bid.player_id),
       ),
     [bids],
   );
 
-  const submittedRoundResultPlayerIds =
-    useMemo(
-      () =>
-        new Set(
-          roundSubmissions.map(
+  const readyPlayerIds = useMemo(
+    () =>
+      new Set(
+        roundSubmissions
+          .filter(
+            (submission) =>
+              submission.isReady,
+          )
+          .map(
             (submission) =>
               submission.playerId,
           ),
         ),
-      [roundSubmissions],
-    );
+    [roundSubmissions],
+  );
+
+  const readyPlayerCount = readyPlayerIds.size;
 
   const allPlayersSubmitted =
     players.length >= 2 &&
-    bids.length === players.length;
+    bids.length === players.length &&
+    bids.every((bid) => bid.is_ready);
 
-  const allRoundResultsSubmitted =
+  const allPlayersReady =
     players.length >= 2 &&
-    roundSubmissions.length === players.length;
+    roundSubmissions.length === players.length &&
+    roundSubmissions.every(
+      submission => submission.isReady,
+    );
 
   const currentRoundResult =
     useMemo<SkullKingRoundResult | null>(() => {
       if (
         !room ||
-        !allRoundResultsSubmitted
+        !allPlayersReady
       ) {
         return null;
       }
@@ -413,59 +599,68 @@ export default function SkullKingMultiplayerPlayPage() {
           };
         }),
   
-        lootAlliances: [],
+        lootAlliances: toCalculatorLootAlliances(roundLootAlliances,),
       });
     }, [
       room,
       players,
       bids,
       roundSubmissions,
-      allRoundResultsSubmitted,
+      allPlayersReady,
+      roundLootAlliances,
     ]);
 
-  const roundResultByPlayerId =
-    useMemo(() => {
-      return new Map(
-        currentRoundResult?.players.map(
-          (result) => [
-            result.playerId,
-            result,
-          ],
-        ) ?? [],
-      );
-    }, [currentRoundResult]);
+  const gamePlayers = useMemo<Player[]>(
+    () =>
+      players.map((player) => ({
+        id: player.id,
+        name: player.name,
+      })),
+    [players],
+  );
 
-  const totalScores = useMemo(() => {
-    const scoreByPlayerId = new Map(
-      players.map((player) => [
-        player.id,
-        0,
-      ]),
-    );
-  
+  const roundResults = useMemo<
+    SkullKingRoundResult[]
+  >(() => {
     if (!room) {
-      return scoreByPlayerId;
+      return [];
     }
+  
+    const lastVisibleRound =
+      room.status === "round-result" ||
+      room.status === "finished"
+        ? room.currentRound
+        : room.currentRound - 1;
+  
+    const results: SkullKingRoundResult[] = [];
   
     for (
       let round = 1;
-      round <= room.currentRound;
+      round <= lastVisibleRound;
       round += 1
     ) {
       const roundBids = allBids.filter(
-        (bid) => bid.round === round,
+        (bid) =>
+          bid.round === round &&
+          bid.is_ready,
       );
   
       const submissions =
         allRoundSubmissions.filter(
           (submission) =>
-            submission.round === round,
+            submission.round === round &&
+            submission.isReady,
+        );
+  
+      const roundAlliances =
+        allLootAlliances.filter(
+          (alliance) =>
+            alliance.round === round,
         );
   
       const hasCompleteRound =
         roundBids.length === players.length &&
-        submissions.length ===
-          players.length;
+        submissions.length === players.length;
   
       if (!hasCompleteRound) {
         continue;
@@ -485,95 +680,103 @@ export default function SkullKingMultiplayerPlayPage() {
         ]),
       );
   
-      const result =
-        calculateSkullKingRound({
-          round,
+      const hasEveryPlayer = players.every(
+        (player) =>
+          bidByPlayerId.has(player.id) &&
+          submissionByPlayerId.has(player.id),
+      );
   
-          players: players.map(
-            (player) => {
-              const bid =
-                bidByPlayerId.get(player.id);
-  
-              const submission =
-                submissionByPlayerId.get(
-                  player.id,
-                );
-  
-              if (
-                bid === undefined ||
-                !submission
-              ) {
-                throw new Error(
-                  "누적 점수 계산에 필요한 데이터가 없습니다.",
-                );
-              }
-  
-              return {
-                playerId: player.id,
-                bid,
-                tricks: submission.tricks,
-  
-                bonuses: {
-                  standardFourteensCount:
-                    submission.standardFourteensCount,
-  
-                  blackFourteenCaptured:
-                    submission.blackFourteenCaptured,
-  
-                  mermaidsCapturedByPirate:
-                    submission.mermaidsCapturedByPirate,
-  
-                  piratesCapturedBySkullKing:
-                    submission.piratesCapturedBySkullKing,
-  
-                  skullKingCapturedByMermaid:
-                    submission.skullKingCapturedByMermaid,
-                },
-              };
-            },
-          ),
-  
-          lootAlliances: [],
-        });
-  
-      for (
-        const playerResult of
-          result.players
-      ) {
-        const previousScore =
-          scoreByPlayerId.get(
-            playerResult.playerId,
-          ) ?? 0;
-  
-        scoreByPlayerId.set(
-          playerResult.playerId,
-          previousScore +
-            playerResult.roundScore,
-        );
+      if (!hasEveryPlayer) {
+        continue;
       }
+  
+      const result = calculateSkullKingRound({
+        round,
+  
+        players: players.map((player) => {
+          const bid =
+            bidByPlayerId.get(player.id);
+  
+          const submission =
+            submissionByPlayerId.get(
+              player.id,
+            );
+  
+          if (
+            bid === undefined ||
+            !submission
+          ) {
+            throw new Error(
+              "라운드 기록 계산에 필요한 데이터가 없습니다.",
+            );
+          }
+  
+          return {
+            playerId: player.id,
+            bid,
+            tricks: submission.tricks,
+  
+            bonuses: {
+              standardFourteensCount:
+                submission.standardFourteensCount,
+  
+              blackFourteenCaptured:
+                submission.blackFourteenCaptured,
+  
+              mermaidsCapturedByPirate:
+                submission.mermaidsCapturedByPirate,
+  
+              piratesCapturedBySkullKing:
+                submission.piratesCapturedBySkullKing,
+  
+              skullKingCapturedByMermaid:
+                submission.skullKingCapturedByMermaid,
+            },
+          };
+        }),
+  
+        lootAlliances:
+          toCalculatorLootAlliances(
+            roundAlliances,
+          ),
+      });
+  
+      results.push(result);
     }
   
-    return scoreByPlayerId;
+    return results;
   }, [
     room,
     players,
     allBids,
     allRoundSubmissions,
+    allLootAlliances,
   ]);
 
-  const currentRanking = useMemo(() => {
-    return players
-      .map((player) => ({
-        player,
-        totalScore:
-          totalScores.get(player.id) ?? 0,
-      }))
-      .sort(
-        (left, right) =>
-          right.totalScore -
-          left.totalScore,
+  const standings = useMemo(
+    () =>
+      calculateStandings(
+        gamePlayers,
+        roundResults,
+      ),
+    [
+      gamePlayers,
+      roundResults,
+    ],
+  );
+
+  const roundResultByPlayerId =
+    useMemo(() => {
+      return new Map(
+        currentRoundResult?.players.map(
+          (result) => [
+            result.playerId,
+            result,
+          ],
+        ) ?? [],
       );
-  }, [players, totalScores]);
+    }, [currentRoundResult]);
+
 
   const submittedTricks =
     myRoundSubmission?.tricks;
@@ -630,6 +833,12 @@ export default function SkullKingMultiplayerPlayPage() {
       submittedSkullKingCapturedByMermaid,
     );
 
+    setLootAlliances(
+      toCalculatorLootAlliances(
+        myRoundLootAlliances,
+      ),
+    );
+
     roundResultInitializedRef.current = true;
   }, [
     submittedTricks,
@@ -638,69 +847,69 @@ export default function SkullKingMultiplayerPlayPage() {
     submittedMermaidsCapturedByPirate,
     submittedPiratesCapturedBySkullKing,
     submittedSkullKingCapturedByMermaid,
+    myRoundLootAlliances,
   ]);
 
   useEffect(() => {
     bidInitializedRef.current = false;
     roundResultInitializedRef.current = false;
+    lootAlliancesInitializedRef.current = false;
 
-    if (myRoundSubmission) {
-      return;
-    }
     setSelectedBid(0);
-  
     setTricks(0);
     setStandardFourteensCount(0);
     setBlackFourteenCaptured(false);
     setMermaidsCapturedByPirate(0);
     setPiratesCapturedBySkullKing(0);
     setSkullKingCapturedByMermaid(false);
+    setLootAlliances([]);
   }, [
     room?.currentRound,
-    myRoundSubmission,
   ]);
 
-  const handleSubmitBid = async () => {
+  const handleToggleBidReady = async () => {
     if (!room || !session) {
       return;
     }
-
+  
     if (room.status !== "bidding") {
       return;
     }
-
+  
     try {
       setIsSubmitting(true);
       setErrorMessage(null);
-
+  
+      // 이미 예측 완료한 상태라면 완료만 취소합니다.
+      if (isBidReady) {
+        await updateBidReady({
+          roomId: room.id,
+          playerId: session.playerId,
+          round: room.currentRound,
+          isReady: false,
+        });
+  
+        await loadGameData();
+        return;
+      }
+  
+      // 예측 완료할 때 현재 선택값을 저장합니다.
       await submitBid({
         roomId: room.id,
         playerId: session.playerId,
         round: room.currentRound,
         bid: selectedBid,
+        isReady: true,
       });
-
-      const nextBids = await getRoundBids(
-        room.id,
-        room.currentRound,
-      );
-
-      setBids(nextBids);
-
+  
       bidInitializedRef.current = true;
-
-      await advanceRoomToScoringIfReady({
-        roomId: room.id,
-        round: room.currentRound,
-        playerCount: players.length,
-      });
-
+  
       await loadGameData();
     } catch (error) {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "예측을 제출하지 못했습니다.",
+          : "예측 상태를 변경하지 못했습니다.",
       );
     } finally {
       setIsSubmitting(false);
@@ -731,52 +940,103 @@ export default function SkullKingMultiplayerPlayPage() {
     );
   }
 
-  const handleSubmitRoundResult =
-    async () => {
-      if (!room || !session) {
-        return;
-      }
+  const handleToggleRoundReady = async () => {
+    if (!room || !session) {
+      return;
+    }
   
-      if (room.status !== "scoring") {
-        return;
-      }
+    try {
+      setIsSubmittingRoundResult(true);
+      setErrorMessage(null);
   
-      try {
-        setIsSubmittingRoundResult(true);
-        setErrorMessage(null);
-  
-        await submitRoundSubmission({
+      // 이미 준비 완료 상태라면 준비만 취소합니다.
+      if (isRoundReady) {
+        await updateRoundReady({
           roomId: room.id,
           playerId: session.playerId,
           round: room.currentRound,
-          tricks,
-          standardFourteensCount,
-          blackFourteenCaptured,
-          mermaidsCapturedByPirate,
-          piratesCapturedBySkullKing,
-          skullKingCapturedByMermaid,
+          isReady: false,
         });
   
-        const nextSubmissions =
-          await getRoundSubmissions(
-            room.id,
-            room.currentRound,
-          );
-  
-        setRoundSubmissions(
-          nextSubmissions,
-        );
-        roundResultInitializedRef.current = true;
-      } catch (error) {
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "라운드 결과를 제출하지 못했습니다.",
-        );
-      } finally {
-        setIsSubmittingRoundResult(false);
+        await loadGameData();
+        return;
       }
-    };
+  
+      // 준비 완료할 때 현재 입력값을 저장합니다.
+      await replacePlayerLootAlliances({
+        roomId: room.id,
+        round: room.currentRound,
+        playerId: session.playerId,
+        receiverIds: lootAlliances.map(
+          alliance => alliance.receiverId,
+        ),
+      });
+  
+      await submitRoundSubmission({
+        roomId: room.id,
+        playerId: session.playerId,
+        round: room.currentRound,
+  
+        tricks,
+        standardFourteensCount,
+        blackFourteenCaptured,
+        mermaidsCapturedByPirate,
+        piratesCapturedBySkullKing,
+        skullKingCapturedByMermaid,
+  
+        isReady: true,
+      });
+  
+  
+      roundResultInitializedRef.current = true;
+      lootAlliancesInitializedRef.current = true;
+
+      await loadGameData();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "준비 상태를 변경하지 못했습니다.",
+      );
+    } finally {
+      setIsSubmittingRoundResult(false);
+    }
+  };
+
+  const handleShowRoundResult = async () => {
+    if (!room || !session) {
+      return;
+    }
+  
+    if (session.playerId !== room.hostPlayerId) {
+      return;
+    }
+  
+    if (!allPlayersReady) {
+      return;
+    }
+  
+    try {
+      setIsAdvancingRound(true);
+  
+      await updateSkullKingRoomStatus({
+        roomId: room.id,
+        hostPlayerId: session.playerId,
+        fromStatus: "scoring",
+        toStatus: "round-result",
+      });
+  
+      await loadGameData();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "라운드 결과를 표시하지 못했습니다.",
+      );
+    } finally {
+      setIsAdvancingRound(false);
+    }
+  };
   
   const handleAdvanceRound =
     async () => {
@@ -792,8 +1052,8 @@ export default function SkullKingMultiplayerPlayPage() {
       }
   
       if (
-        room.status !== "scoring" ||
-        !allRoundResultsSubmitted
+        room.status !== "round-result" ||
+        !allPlayersReady
       ) {
         return;
       }
@@ -823,6 +1083,50 @@ export default function SkullKingMultiplayerPlayPage() {
         setIsAdvancingRound(false);
       }
     };
+
+  const handleStartScoring = async () => {
+    if (!room || !session) {
+      return;
+    }
+  
+    if (session.playerId !== room.hostPlayerId) {
+      return;
+    }
+  
+    if (!allPlayersSubmitted) {
+      return;
+    }
+  
+    try {
+      setIsAdvancingRound(true);
+  
+      await updateSkullKingRoomStatus({
+        roomId: room.id,
+        hostPlayerId: session.playerId,
+        fromStatus: "bidding",
+        toStatus: "scoring",
+      });
+  
+      await loadGameData();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "결과 입력을 시작하지 못했습니다.",
+      );
+    } finally {
+      setIsAdvancingRound(false);
+    }
+  };
+
+  const handlePlayAgain = () => {
+    router.push("/games/skull-king/multi");
+  };
+  
+  const handleGoHome = () => {
+    clearRecentGame();
+    router.push("/");
+  };
 
   if (!isSessionLoaded) {
     return (
@@ -895,22 +1199,21 @@ export default function SkullKingMultiplayerPlayPage() {
 
   if (room.status === "finished") {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-3 px-4">
-        <h1 className="text-2xl font-bold text-board-text">
-          게임 종료
-        </h1>
-
-        <p className="text-board-text-muted">
-          최종 결과 화면은 다음 단계에서
-          구현할 수 있습니다.
-        </p>
-      </main>
+      <GameResultScreen
+        players={gamePlayers}
+        standings={standings}
+        roundResults={roundResults}
+        currentPlayerId={session.playerId}
+        onPlayAgain={handlePlayAgain}
+        onGoHome={handleGoHome}
+        isPlayAgainLoading={isAdvancingRound}
+      />
     );
   }
 
   if (
-    room.status === "scoring" &&
-    allRoundResultsSubmitted &&
+    room.status === "round-result" &&
+    allPlayersReady &&
     currentRoundResult
   ) {
         return (
@@ -948,9 +1251,6 @@ export default function SkullKingMultiplayerPlayPage() {
                 return null;
               }
     
-              const isMe =
-                player.id === session.playerId;
-    
               return (
                 <div
                   key={player.id}
@@ -958,14 +1258,11 @@ export default function SkullKingMultiplayerPlayPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-semibold">
-                        {player.name}
-                        {isMe && (
-                          <span className="ml-1 text-xs text-board-text-muted">
-                            (나)
-                          </span>
-                        )}
-                      </p>
+                      <PlayerName
+                        name={player.name}
+                        isMe={player.id === session.playerId}
+                        className="font-medium text-board-text"
+                      />
     
                       <p className="mt-1 text-sm text-board-text-muted">
                         예측 {bid.bid}
@@ -996,56 +1293,10 @@ export default function SkullKingMultiplayerPlayPage() {
           </div>
         </section>
     
-        <section className="mt-5 rounded-2xl border border-board-border bg-white p-5">
-          <h2 className="font-semibold text-board-text">
-            현재 순위
-          </h2>
-        
-          <div className="mt-4 space-y-2">
-            {currentRanking.map(
-              (
-                { player, totalScore },
-                index,
-              ) => {
-                const rank = getRank(
-                  currentRanking,
-                  index,
-                );
-        
-                const isMe =
-                  player.id ===
-                  session.playerId;
-        
-                return (
-                  <div
-                    key={player.id}
-                    className="flex items-center justify-between rounded-xl bg-board-secondary px-4 py-3"
-                  >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="w-8 shrink-0 text-sm font-bold text-board-primary">
-                        {rank}위
-                      </span>
-        
-                      <span className="truncate font-medium text-board-text">
-                        {player.name}
-        
-                        {isMe && (
-                          <span className="ml-1 text-xs text-board-text-muted">
-                            (나)
-                          </span>
-                        )}
-                      </span>
-                    </div>
-        
-                    <strong className="shrink-0 text-board-text">
-                      {formatScore(totalScore)}
-                    </strong>
-                  </div>
-                );
-              },
-            )}
-          </div>
-        </section>
+        <StandingsSection
+          standings={standings}
+          currentPlayerId={session.playerId}
+        />
     
         {session.playerId === room.hostPlayerId ? (
           <button
@@ -1088,92 +1339,7 @@ export default function SkullKingMultiplayerPlayPage() {
             보너스를 입력하세요.
           </p>
         </header>
-  
-        <section className="mt-6 rounded-2xl border border-board-border bg-board-surface p-5">
-          <div>
-            <p className="text-sm font-medium text-board-text">
-              예측
-            </p>
-        
-            <div className="mt-2 flex flex-wrap gap-2">
-              {Array.from(
-                { length: room.currentRound + 1 },
-                (_, value) => {
-                  const isMyBid =
-                    value === myBid?.bid;
-        
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      disabled
-                      aria-label={
-                        isMyBid
-                          ? `내 예측 ${value}`
-                          : undefined
-                      }
-                      className={`flex size-[35px] items-center justify-center rounded-xl text-base font-semibold ${
-                        isMyBid
-                          ? "bg-board-primary text-white"
-                          : "bg-board-disabled text-board-disabled-text"
-                      }`}
-                    >
-                      {value}
-                    </button>
-                  );
-                },
-              )}
-            </div>
-          </div>
-        
-          <div className="mt-5">
-            <NumberSelector
-              label="실제"
-              value={tricks}
-              max={room.currentRound}
-              onChange={setTricks}
-              disabled={isSubmittingRoundResult}
-            />
-          </div>
-        </section>
-  
-        <section className="mt-5 rounded-2xl border border-board-border bg-white p-5">
-          <h2 className="font-semibold text-board-text">
-            보너스
-          </h2>
-  
-          <BonusSection
-            value={bonusValue}
-            onChange={handleBonusChange}
-            disabled={isSubmittingRoundResult}
-          />
-  
-          <button
-            type="button"
-            onClick={
-              handleSubmitRoundResult
-            }
-            disabled={
-              isSubmittingRoundResult
-            }
-            className="mt-6 w-full rounded-xl bg-board-primary px-4 py-3 font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isSubmittingRoundResult
-              ? "제출 중..."
-              : myRoundSubmission
-                ? "결과 수정"
-                : "결과 제출"}
-          </button>
-  
-          {myRoundSubmission && (
-            <p className="mt-3 text-center text-sm text-board-text-muted">
-              결과를 제출했습니다. 모든
-              플레이어가 제출하기 전까지
-              수정할 수 있습니다.
-            </p>
-          )}
-        </section>
-  
+
         <section className="mt-5 rounded-2xl border border-board-border bg-white p-5">
           <h2 className="font-semibold text-board-text">
             예측 결과
@@ -1192,9 +1358,11 @@ export default function SkullKingMultiplayerPlayPage() {
                   key={player.id}
                   className="flex items-center justify-between rounded-xl bg-board-secondary px-4 py-3"
                 >
-                  <span className="font-medium text-board-text">
-                    {player.name}
-                  </span>
+                  <PlayerName
+                    name={player.name}
+                    isMe={player.id === session.playerId}
+                    className="font-medium text-board-text"
+                  />
   
                   <span className="font-semibold text-board-primary">
                     예측{" "}
@@ -1206,67 +1374,175 @@ export default function SkullKingMultiplayerPlayPage() {
           </div>
         </section>
   
+        <section className="mt-6 rounded-2xl border border-board-border bg-board-surface p-5">
+          <NumberSelector
+            label="예측"
+            value={myBid?.bid ?? 0}
+            max={room.currentRound}
+            onChange={() => undefined}
+            readOnly
+          />
+        
+          <div className="mt-5">
+            <NumberSelector
+              label="실제"
+              value={tricks}
+              max={room.currentRound}
+              onChange={setTricks}
+              disabled={isSubmittingRoundResult}
+              readOnly={isRoundReady}
+            />
+          </div>
+
+          {myEstimatedScore !== null && (
+            <div className="mt-3 flex items-center justify-between py-2">
+              <span className="font-semibold text-gray-700">
+                예상 점수
+              </span>
+            
+              <strong
+                className={`text-lg font-bold ${
+                  myEstimatedScore > 0
+                    ? "text-board-primary"
+                    : myEstimatedScore < 0
+                      ? "text-red-600"
+                      : "text-board-muted"
+                }`}
+              >
+                {myEstimatedScore > 0 ? "+" : ""}
+                {myEstimatedScore}점
+              </strong>
+            </div>
+                )}
+        </section>
+  
+        <section className="mt-5 rounded-2xl border border-board-border bg-white p-5">
+          <h2 className="font-semibold text-board-text">
+            보너스
+          </h2>
+  
+          <BonusSection
+            value={bonusValue}
+            onChange={handleBonusChange}
+            disabled={isSubmittingRoundResult}
+            readOnly={isRoundReady}
+          />
+
+          <div className="mt-5">
+            <LootAllianceSection
+              currentPlayerId={session.playerId}
+              allPlayers={players}
+              lootAlliances={lootAlliances}
+              onChange={setLootAlliances}
+              disabled={isSubmittingRoundResult}
+              readOnly={isRoundReady}
+            />
+          </div>
+  
+          <button
+            type="button"
+            onClick={handleToggleRoundReady}
+            disabled={isSubmittingRoundResult}
+            aria-pressed={isRoundReady}
+            className={`w-full rounded-xl px-4 py-3 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              isRoundReady
+                ? "border border-board-primary bg-white text-board-primary"
+                : "bg-board-primary text-white"
+            }`}
+          >
+            {isSubmittingRoundResult
+              ? isRoundReady
+                ? "결과 제출 취소 중..."
+                : "결과 제출 중..."
+              : isRoundReady
+                ? "결과 제출 완료 · 눌러서 수정"
+                : "결과 제출"}
+          </button>
+  
+          {myRoundSubmission && (
+            <p className="mt-3 text-sm text-board-text-muted">
+              {isRoundReady
+                ? "결과 제출이 완료되었습니다. 다시 누르면 결과 제출을 취소하고 수정할 수 있습니다."
+                : "입력을 확인한 뒤 결과 제출 버튼을 눌러주세요."}
+            </p>
+          )}
+        </section>
+
+  
         <section className="mt-5 rounded-2xl border border-board-border bg-white p-5">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-board-text">
-              결과 제출 현황
+              준비 현황
             </h2>
   
             <span className="text-sm font-medium text-board-text-muted">
-              {roundSubmissions.length}/
+              {readyPlayerCount}/
               {players.length}
             </span>
           </div>
   
           <div className="mt-4 space-y-2">
             {players.map((player) => {
-              const hasSubmitted =
-                submittedRoundResultPlayerIds.has(
+              const isPlayerReady =
+                readyPlayerIds.has(
                   player.id,
                 );
-  
-              const isMe =
-                player.id ===
-                session.playerId;
   
               return (
                 <div
                   key={player.id}
                   className="flex items-center justify-between rounded-xl bg-board-secondary px-4 py-3"
                 >
-                  <span className="font-medium text-board-text">
-                    {player.name}
-  
-                    {isMe && (
-                      <span className="ml-1 text-xs text-board-text-muted">
-                        (나)
-                      </span>
-                    )}
-                  </span>
+                  <PlayerName
+                    name={player.name}
+                    isMe={player.id === session.playerId}
+                    className="font-medium text-board-text"
+                  />
   
                   <span
                     className={
-                      hasSubmitted
+                      isPlayerReady
                         ? "text-sm font-semibold text-board-primary"
                         : "text-sm text-board-text-muted"
                     }
                   >
-                    {hasSubmitted
-                      ? "제출 완료"
-                      : "입력 중"}
+                    {isPlayerReady
+                      ? "준비 완료"
+                      : "준비 중"}
                   </span>
                 </div>
               );
             })}
           </div>
   
-          {allRoundResultsSubmitted && (
-            <p className="mt-4 text-center text-sm font-semibold text-board-primary">
-              모든 플레이어가 결과를
-              제출했습니다.
-            </p>
+          {allPlayersReady && (
+            session.playerId === room.hostPlayerId ? (
+              <button
+                type="button"
+                onClick={handleShowRoundResult}
+                disabled={isAdvancingRound}
+                className="mt-5 w-full rounded-xl bg-board-primary px-4 py-3 font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isAdvancingRound
+                  ? "결과 불러오는 중..."
+                  : "라운드 결과 보기"}
+              </button>
+            ) : (
+              <p className="mt-4 text-sm text-board-text-muted">
+                모든 플레이어가 준비를 완료했습니다.
+                <br />
+                방장이 라운드 결과를 확인할 때까지 기다려주세요.
+              </p>
+            )
           )}
         </section>
+
+        {roundResults.length > 0 && (
+          <StandingsSection
+            standings={standings}
+            currentPlayerId={session.playerId}
+          />
+        )}
   
         {errorMessage && (
           <p className="mt-4 text-center text-sm text-red-600">
@@ -1295,63 +1571,39 @@ export default function SkullKingMultiplayerPlayPage() {
       </header>
 
       <section className="mt-6 rounded-2xl border border-board-border bg-white p-5">
-        <h2 className="font-semibold text-board-text">
-          내 예측
-        </h2>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {Array.from(
-            {
-              length:
-                room.currentRound + 1,
-            },
-            (_, bid) => (
-              <button
-                key={bid}
-                type="button"
-                onClick={() =>
-                  setSelectedBid(bid)
-                }
-                disabled={
-                  isSubmitting ||
-                  allPlayersSubmitted
-                }
-                className={`flex size-[35px] items-center justify-center rounded-xl text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
-                  selectedBid === bid
-                    ? "bg-board-primary text-white"
-                    : "bg-board-secondary text-board-text hover:bg-board-primary-soft"
-                }`}
-              >
-                {bid}
-              </button>
-            ),
-          )}
-        </div>
-
+        <NumberSelector
+          label="내 예측"
+          value={selectedBid}
+          max={room.currentRound}
+          onChange={setSelectedBid}
+          disabled={isSubmitting}
+          readOnly={isBidReady}
+        />
         <button
           type="button"
-          onClick={handleSubmitBid}
-          disabled={
-            isSubmitting ||
-            allPlayersSubmitted
-          }
-          className="mt-5 w-full rounded-xl bg-board-primary px-4 py-3 font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={handleToggleBidReady}
+          disabled={isSubmitting}
+          aria-pressed={isBidReady}
+          className={`mt-5 w-full rounded-xl px-4 py-3 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            isBidReady
+              ? "border border-board-primary bg-white text-board-primary"
+              : "bg-board-primary text-white"
+          }`}
         >
           {isSubmitting
-            ? "제출 중..."
-            : myBid
-              ? "예측 수정"
-              : "예측 제출"}
+            ? isBidReady
+              ? "예측 완료 취소 중..."
+              : "예측 완료 중..."
+            : isBidReady
+              ? "예측 완료 · 눌러서 수정"
+              : "예측 완료"}
         </button>
 
-        {myBid && (
-          <p className="mt-3 text-center text-sm text-board-text-muted">
-            현재 제출한 예측:{" "}
-            <strong className="text-board-primary">
-              {myBid.bid}
-            </strong>
-          </p>
-        )}
+        <p className="mt-3 text-center text-sm text-board-text-muted">
+          {isBidReady
+            ? "예측이 완료되었습니다. 다시 누르면 완료를 취소하고 수정할 수 있습니다."
+            : "예측값을 확인한 뒤 예측 완료 버튼을 눌러주세요."}
+        </p>
       </section>
 
       <section className="mt-5 rounded-2xl border border-board-border bg-white p-5">
@@ -1361,43 +1613,37 @@ export default function SkullKingMultiplayerPlayPage() {
           </h2>
 
           <span className="text-sm font-medium text-board-text-muted">
-            {bids.length}/{players.length}
+            {bidReadyPlayerIds.size}/{players.length}
           </span>
         </div>
 
         <div className="mt-4 space-y-2">
           {players.map((player) => {
-            const hasSubmitted =
-              submittedPlayerIds.has(
+            const isPlayerReady =
+              bidReadyPlayerIds.has(
                 player.id,
               );
-
-            const isMe =
-              player.id === session.playerId;
 
             return (
               <div
                 key={player.id}
                 className="flex items-center justify-between rounded-xl bg-board-secondary px-4 py-3"
               >
-                <span className="font-medium text-board-text">
-                  {player.name}
-                  {isMe && (
-                    <span className="ml-1 text-xs text-board-text-muted">
-                      (나)
-                    </span>
-                  )}
-                </span>
+                <PlayerName
+                  name={player.name}
+                  isMe={player.id === session.playerId}
+                  className="font-medium text-board-text"
+                />
 
                 <span
                   className={
-                    hasSubmitted
+                    isPlayerReady
                       ? "text-sm font-semibold text-board-primary"
                       : "text-sm text-board-text-muted"
                   }
                 >
-                  {hasSubmitted
-                    ? "제출 완료"
+                  {isPlayerReady
+                    ? "예측 완료"
                     : "입력 중"}
                 </span>
               </div>
@@ -1405,12 +1651,33 @@ export default function SkullKingMultiplayerPlayPage() {
           })}
         </div>
 
-        {allPlayersSubmitted && (
-          <p className="mt-4 text-center text-sm font-medium text-board-primary">
-            모든 플레이어가 제출했습니다.
-          </p>
-        )}
+        {allPlayersSubmitted &&
+          (session.playerId === room.hostPlayerId ? (
+            <button
+              type="button"
+              onClick={handleStartScoring}
+              disabled={isAdvancingRound}
+              className="mt-4 w-full rounded-xl bg-board-primary px-4 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isAdvancingRound
+                ? "결과 입력 시작 중..."
+                : "결과 입력 시작"}
+            </button>
+          ) : (
+            <p className="mt-4 text-center text-sm text-board-text-muted">
+              모든 플레이어가 제출했습니다.
+              <br />
+              방장이 결과 입력을 시작할 때까지 기다려주세요.
+            </p>
+          ))}
       </section>
+
+      {roundResults.length > 0 && (
+        <StandingsSection
+          standings={standings}
+          currentPlayerId={session.playerId}
+        />
+      )}
 
       {errorMessage && (
         <p className="mt-4 text-center text-sm text-red-600">
@@ -1421,35 +1688,13 @@ export default function SkullKingMultiplayerPlayPage() {
   );
 }
 
-function getRank(
-  ranking: {
-    totalScore: number;
-  }[],
-  index: number,
-) {
-  if (index === 0) {
-    return 1;
-  }
 
-  if (
-    ranking[index].totalScore ===
-    ranking[index - 1].totalScore
-  ) {
-    return getRank(
-      ranking,
-      index - 1,
-    );
-  }
-
-  return index + 1;
-}
-
-function formatScore(
-  score: number,
-) {
-  if (score > 0) {
-    return `+${score}`;
-  }
-
-  return `${score}`;
+function toCalculatorLootAlliances(
+  alliances: SkullKingRoomLootAlliance[],
+): LootAlliance[] {
+  return alliances.map((alliance) => ({
+    giverId: alliance.giverPlayerId,
+    receiverId:
+      alliance.receiverPlayerId,
+  }));
 }

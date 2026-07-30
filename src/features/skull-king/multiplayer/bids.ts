@@ -8,6 +8,7 @@ export interface SkullKingBid {
   bid: number;
   submitted_at: string;
   updated_at: string;
+  is_ready: boolean;
 }
 
 interface SubmitBidParams {
@@ -15,6 +16,7 @@ interface SubmitBidParams {
   playerId: string;
   round: number;
   bid: number;
+  isReady: boolean;
 }
 
 interface CheckAllBidsSubmittedParams {
@@ -47,7 +49,8 @@ export async function getRoundBids(
         round,
         bid,
         submitted_at,
-        updated_at
+        updated_at,
+        is_ready
       `,
     )
     .eq("room_id", roomId)
@@ -76,12 +79,14 @@ export async function submitBid({
   playerId,
   round,
   bid,
+  isReady,
 }: SubmitBidParams): Promise<SkullKingBid> {
   validateBidInput({
     roomId,
     playerId,
     round,
     bid,
+    isReady,
   });
 
   const now = new Date().toISOString();
@@ -96,6 +101,7 @@ export async function submitBid({
         bid,
         submitted_at: now,
         updated_at: now,
+        is_ready: isReady,
       },
       {
         onConflict: "room_id,player_id,round",
@@ -109,7 +115,8 @@ export async function submitBid({
         round,
         bid,
         submitted_at,
-        updated_at
+        updated_at,
+        is_ready
       `,
     )
     .single();
@@ -144,7 +151,8 @@ export async function getPlayerBid(
         round,
         bid,
         submitted_at,
-        updated_at
+        updated_at,
+        is_ready
       `,
     )
     .eq("room_id", roomId)
@@ -282,4 +290,33 @@ export async function getRoomBids(
   }
 
   return data ?? [];
+}
+
+type UpdateBidReadyParams = {
+  roomId: string;
+  playerId: string;
+  round: number;
+  isReady: boolean;
+};
+
+export async function updateBidReady({
+  roomId,
+  playerId,
+  round,
+  isReady,
+}: UpdateBidReadyParams): Promise<void> {
+  const { error } = await supabase
+    .from("skull_king_bids")
+    .update({
+      is_ready: isReady,
+    })
+    .eq("room_id", roomId)
+    .eq("player_id", playerId)
+    .eq("round", round);
+
+  if (error) {
+    throw new Error(
+      `예측 준비 상태를 변경하지 못했습니다: ${error.message}`,
+    );
+  }
 }

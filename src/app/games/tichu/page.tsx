@@ -20,6 +20,11 @@ import { calculateTichuGame } from "@/features/tichu/game";
 
 import { useSearchParams } from "next/navigation";
 
+import { 
+  saveRecentGame,
+  clearRecentGame,
+} from "@/features/recent-game/storage";
+
 import type {
   TichuPlayer,
   TichuRoundInput,
@@ -122,6 +127,7 @@ function TichuPageContent() {
     players: TichuPlayer[],
     targetScore: number,
   ) {
+    saveRecentGame("tichu");
     clearTichuGame();
 
     setSetup({
@@ -139,6 +145,7 @@ function TichuPageContent() {
     if (gameResult?.isFinished) {
       return;
     }
+    saveRecentGame("tichu");
 
     const result =
       calculateTichuRound(input);
@@ -186,6 +193,8 @@ function TichuPageContent() {
   }
 
   function handleGoHome() {
+    clearRecentGame();
+    clearTichuGame();
     router.push("/");
   }
 

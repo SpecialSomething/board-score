@@ -4,18 +4,23 @@ import { useState } from "react";
 
 import type {
   LootAlliance,
-  Player,
   PlayerId,
 } from "../types";
 
 import { MAX_LOOT_ALLIANCES } from "../constants";
 
+type LootAlliancePlayer = {
+  id: PlayerId;
+  name: string;
+};
+
 type LootAllianceSectionProps = {
   currentPlayerId: PlayerId;
-  allPlayers: Player[];
+  allPlayers: LootAlliancePlayer[];
   lootAlliances: LootAlliance[];
   onChange: (lootAlliances: LootAlliance[]) => void;
   disabled?: boolean;
+  readOnly?: boolean;
 };
 
 export default function LootAllianceSection({
@@ -24,6 +29,7 @@ export default function LootAllianceSection({
   lootAlliances,
   onChange,
   disabled = false,
+  readOnly = false,
 }: LootAllianceSectionProps) {
   const [selectedReceiverId, setSelectedReceiverId] =
     useState<PlayerId | null>(null);
@@ -47,8 +53,7 @@ export default function LootAllianceSection({
     }))
     .filter(
       ({ alliance }) => 
-        alliance.giverId === currentPlayerId ||
-        alliance.receiverId === currentPlayerId
+        alliance.giverId === currentPlayerId
     );
 
   const isAllianceLimitReached = lootAlliances.length >= MAX_LOOT_ALLIANCES;
@@ -110,11 +115,15 @@ export default function LootAllianceSection({
               key={player.id}
               type="button"
               disabled={disabled}
+              aria-disabled={disabled || readOnly}
               aria-pressed={isSelected || isAllianceLimitReached}
-              onClick={() =>
-                setSelectedReceiverId((currentId) =>
-                  currentId === player.id ? null : player.id
-                )
+              onClick={() => {
+                if (disabled || readOnly) {
+                  return;
+                }
+                  setSelectedReceiverId((currentId) =>
+                    currentId === player.id ? null : player.id
+                )}
               }
               className={`flex min-w-[35px] h-[35px] px-3 whitespace-nowrap items-center justify-center rounded-xl text-base font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-board-primary disabled:cursor-not-allowed disabled:bg-board-disabled disabled:text-board-disabled-text ${
                 isSelected

@@ -9,7 +9,12 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/Header";
 
 import { createSkullKingRoom } from "@/features/skull-king/multiplayer/rooms";
+
 import { saveMultiplayerSession } from "@/features/skull-king/multiplayer/session";
+
+import { saveRecentGame } from "@/features/recent-game/storage";
+
+
 
 export default function CreateSkullKingRoomPage() {
   const router = useRouter();
@@ -31,6 +36,8 @@ export default function CreateSkullKingRoomPage() {
     event: SubmitEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+
+    saveRecentGame("skull-king-multi");
 
     if (!canCreate) {
       return;

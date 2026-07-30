@@ -15,6 +15,8 @@ type SubmitRoundSubmissionParams = {
   mermaidsCapturedByPirate: number;
   piratesCapturedBySkullKing: number;
   skullKingCapturedByMermaid: boolean;
+
+  isReady: boolean;
 };
 
 type CheckAllRoundSubmissionsParams = {
@@ -46,6 +48,7 @@ export async function getRoundSubmissions(
       mermaids_captured_by_pirate,
       pirates_captured_by_skull_king,
       skull_king_captured_by_mermaid,
+      is_ready,
       submitted_at,
       updated_at
       `,
@@ -97,6 +100,7 @@ export async function getPlayerRoundSubmission(
       mermaids_captured_by_pirate,
       pirates_captured_by_skull_king,
       skull_king_captured_by_mermaid,
+      is_ready,
       submitted_at,
       updated_at
       `,
@@ -135,6 +139,7 @@ export async function submitRoundSubmission({
   mermaidsCapturedByPirate,
   piratesCapturedBySkullKing,
   skullKingCapturedByMermaid,
+  isReady,
 }: SubmitRoundSubmissionParams): Promise<SkullKingRoundSubmission> {
   validateRoundSubmission({
     roomId,
@@ -146,6 +151,7 @@ export async function submitRoundSubmission({
     mermaidsCapturedByPirate,
     piratesCapturedBySkullKing,
     skullKingCapturedByMermaid,
+    isReady,
   });
 
   const now = new Date().toISOString();
@@ -168,6 +174,7 @@ export async function submitRoundSubmission({
           piratesCapturedBySkullKing,
         skull_king_captured_by_mermaid:
           skullKingCapturedByMermaid,
+        is_ready: isReady,
         submitted_at: now,
         updated_at: now,
       },
@@ -188,12 +195,12 @@ export async function submitRoundSubmission({
       mermaids_captured_by_pirate,
       pirates_captured_by_skull_king,
       skull_king_captured_by_mermaid,
+      is_ready,
       submitted_at,
       updated_at
       `,
     )
-    .single();
-
+    .single();  
   if (error) {
     throw new Error(
       `라운드 결과를 제출하지 못했습니다: ${error.message}`,
@@ -203,10 +210,66 @@ export async function submitRoundSubmission({
   return mapRoundSubmission(data);
 }
 
+type UpdateRoundReadyParams = {
+    roomId: string;
+    playerId: string;
+    round: number;
+    isReady: boolean;
+  };
+  
+export async function updateRoundReady({
+    roomId,
+    playerId,
+    round,
+    isReady,
+  }: UpdateRoundReadyParams): Promise<SkullKingRoundSubmission> {
+    validateRoomAndRound(roomId, round);
+  
+    if (!playerId) {
+      throw new Error("플레이어 ID가 필요합니다.");
+    }
+  
+    const { data, error } = await supabase
+      .from("skull_king_round_submissions")
+      .update({
+        is_ready: isReady,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("room_id", roomId)
+      .eq("player_id", playerId)
+      .eq("round", round)
+      .select(
+        `
+        id,
+        room_id,
+        player_id,
+        round,
+        tricks,
+        standard_fourteens_count,
+        black_fourteen_captured,
+        mermaids_captured_by_pirate,
+        pirates_captured_by_skull_king,
+        skull_king_captured_by_mermaid,
+        is_ready,
+        submitted_at,
+        updated_at
+        `,
+      )
+      .single();
+  
+    if (error) {
+      throw new Error(
+        `준비 상태를 변경하지 못했습니다: ${error.message}`,
+      );
+    }
+  
+    return mapRoundSubmission(data);
+  }
+
 /**
  * 현재 라운드에 모든 플레이어가 결과를 제출했는지 확인합니다.
  */
-export async function haveAllPlayersSubmittedRoundResults({
+export async function haveAllPlayersReady({
   roomId,
   round,
   playerCount,
@@ -227,7 +290,8 @@ export async function haveAllPlayersSubmittedRoundResults({
       head: true,
     })
     .eq("room_id", roomId)
-    .eq("round", round);
+    .eq("round", round)
+    .eq("is_ready", true);
 
   if (error) {
     throw new Error(
@@ -254,6 +318,7 @@ function mapRoundSubmission(
     mermaids_captured_by_pirate: number;
     pirates_captured_by_skull_king: number;
     skull_king_captured_by_mermaid: boolean;
+    is_ready: boolean;
     submitted_at: string;
     updated_at: string;
   },
@@ -274,6 +339,7 @@ function mapRoundSubmission(
       submission.pirates_captured_by_skull_king,
     skullKingCapturedByMermaid:
       submission.skull_king_captured_by_mermaid,
+    isReady: submission.is_ready,
     submittedAt: submission.submitted_at,
     updatedAt: submission.updated_at,
   };
@@ -357,9 +423,29 @@ function validateCount(
 export async function getRoomSubmissions(
   roomId: string,
 ): Promise<SkullKingRoundSubmission[]> {
+  if (!roomId) {
+    throw new Error("방 ID가 필요합니다.");
+  }
+
   const { data, error } = await supabase
     .from("skull_king_round_submissions")
-    .select("*")
+    .select(
+      `
+      id,
+      room_id,
+      player_id,
+      round,
+      tricks,
+      standard_fourteens_count,
+      black_fourteen_captured,
+      mermaids_captured_by_pirate,
+      pirates_captured_by_skull_king,
+      skull_king_captured_by_mermaid,
+      is_ready,
+      submitted_at,
+      updated_at
+      `,
+    )
     .eq("room_id", roomId)
     .order("round", {
       ascending: true,
@@ -367,36 +453,9 @@ export async function getRoomSubmissions(
 
   if (error) {
     throw new Error(
-      "전체 라운드 결과를 불러오지 못했습니다.",
+      `전체 라운드 결과를 불러오지 못했습니다: ${error.message}`,
     );
   }
 
-  return (data ?? []).map((submission) => ({
-    id: submission.id,
-    roomId: submission.room_id,
-    playerId: submission.player_id,
-    round: submission.round,
-    tricks: submission.tricks,
-
-    standardFourteensCount:
-      submission.standard_fourteens_count,
-
-    blackFourteenCaptured:
-      submission.black_fourteen_captured,
-
-    mermaidsCapturedByPirate:
-      submission.mermaids_captured_by_pirate,
-
-    piratesCapturedBySkullKing:
-      submission.pirates_captured_by_skull_king,
-
-    skullKingCapturedByMermaid:
-      submission.skull_king_captured_by_mermaid,
-
-    submittedAt:
-      submission.submitted_at,
-    
-    updatedAt:
-      submission.updated_at
-  }));
+  return (data ?? []).map(mapRoundSubmission);
 }

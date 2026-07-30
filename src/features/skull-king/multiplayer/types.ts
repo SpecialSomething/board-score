@@ -48,6 +48,8 @@ export type SkullKingRoundSubmission = {
   piratesCapturedBySkullKing: number;
   skullKingCapturedByMermaid: boolean;
 
+  isReady: boolean;
+
   submittedAt: string;
   updatedAt: string;
 };

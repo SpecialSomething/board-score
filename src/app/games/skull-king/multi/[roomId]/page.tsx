@@ -23,6 +23,8 @@ import {
   loadMultiplayerSession,
 } from "@/features/skull-king/multiplayer/session";
 
+import { saveRecentGame } from "@/features/recent-game/storage";
+
 type Room = Awaited<
   ReturnType<typeof getSkullKingRoom>
 >;
@@ -132,6 +134,8 @@ export default function SkullKingRoomPage() {
     ) {
       return;
     }
+
+    saveRecentGame("skull-king-multi");
   
     const timeoutId = window.setTimeout(() => {
       void loadRoomData();

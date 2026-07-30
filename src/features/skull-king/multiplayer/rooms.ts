@@ -489,7 +489,7 @@ export async function advanceSkullKingRoom({
     )
     .eq("id", roomId)
     .eq("host_player_id", hostPlayerId)
-    .eq("status", "scoring")
+    .eq("status", "round-result")
     .eq("current_round", currentRound)
     .select()
     .single();
@@ -500,6 +500,46 @@ export async function advanceSkullKingRoom({
         ? "게임을 종료하지 못했습니다."
         : "다음 라운드로 넘어가지 못했습니다.",
     );
+  }
+
+  return {
+    id: data.id,
+    code: data.code,
+    hostPlayerId: data.host_player_id,
+    status: data.status,
+    currentRound: data.current_round,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+type UpdateSkullKingRoomStatusParams = {
+  roomId: string;
+  hostPlayerId: string;
+  fromStatus: SkullKingRoom["status"];
+  toStatus: SkullKingRoom["status"];
+};
+
+export async function updateSkullKingRoomStatus({
+  roomId,
+  hostPlayerId,
+  fromStatus,
+  toStatus,
+}: UpdateSkullKingRoomStatusParams): Promise<SkullKingRoom> {
+  const { data, error } = await supabase
+    .from("skull_king_rooms")
+    .update({
+      status: toStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", roomId)
+    .eq("host_player_id", hostPlayerId)
+    .eq("status", fromStatus)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error("방 상태를 변경하지 못했습니다.");
   }
 
   return {
