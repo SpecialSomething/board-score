@@ -71,6 +71,8 @@ import {
   saveRecentGame,
 } from "@/features/recent-game/storage";
 
+import { supabase } from "@/lib/supabase";
+
 
 
 export default function SkullKingMultiplayerPlayPage() {
@@ -267,6 +269,32 @@ export default function SkullKingMultiplayerPlayPage() {
     [roomId],
   );
 
+  const currentRoomRound =
+    room?.currentRound;
+  
+  const loadRoundLootAlliances =
+    useCallback(async () => {
+      if (
+        !roomId ||
+        currentRoomRound === undefined
+      ) {
+        return;
+      }
+  
+      const nextRoundLootAlliances =
+        await getRoundLootAlliances(
+          roomId,
+          currentRoomRound,
+        );
+  
+      setRoundLootAlliances(
+        nextRoundLootAlliances,
+      );
+    }, [
+      roomId,
+      currentRoomRound,
+    ]);
+
   useEffect(() => {
     window.scrollTo({
       top: 0,
@@ -324,6 +352,72 @@ export default function SkullKingMultiplayerPlayPage() {
     isSessionLoaded,
     session,
     loadGameData,
+  ]);
+
+  useEffect(() => {
+    if (
+      !isSessionLoaded ||
+      !session ||
+      !room
+    ) {
+      return;
+    }
+  
+    const channel = supabase
+      .channel(
+        `loot-alliances:${room.id}:${room.currentRound}`,
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table:
+            "skull_king_loot_alliances",
+          filter: `room_id=eq.${room.id}`,
+        },
+        (payload) => {
+          const changedRound =
+            payload.eventType === "DELETE"
+              ? (
+                  payload.old as {
+                    round?: number;
+                  }
+                ).round
+              : (
+                  payload.new as {
+                    round?: number;
+                  }
+                ).round;
+  
+          if (
+            changedRound !==
+            room.currentRound
+          ) {
+            return;
+          }
+  
+          void loadRoundLootAlliances();
+        },
+      )
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR") {
+          console.error(
+            "약탈품 동맹 실시간 구독에 실패했습니다.",
+          );
+        }
+      });
+  
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [
+    isSessionLoaded,
+    session,
+    room?.id,
+    room?.currentRound,
+    room,
+    loadRoundLootAlliances,
   ]);
 
   /**
@@ -1003,6 +1097,39 @@ export default function SkullKingMultiplayerPlayPage() {
     }
   };
 
+  const handleLootAlliancesChange = async (
+    nextLootAlliances: LootAlliance[],
+  ) => {
+    if (!room || !session) {
+      return;
+    }
+  
+    // 내 화면에는 먼저 바로 반영
+    setLootAlliances(nextLootAlliances);
+  
+    try {
+      setErrorMessage(null);
+  
+      await replacePlayerLootAlliances({
+        roomId: room.id,
+        round: room.currentRound,
+        playerId: session.playerId,
+        receiverIds: nextLootAlliances.map(
+          (alliance) => alliance.receiverId,
+        ),
+      });
+  
+      // 서버의 전체 동맹 목록을 다시 불러옴
+      await loadRoundLootAlliances();
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "약탈품 동맹을 저장하지 못했습니다.",
+      );
+    }
+  };
+
   const handleShowRoundResult = async () => {
     if (!room || !session) {
       return;
@@ -1219,11 +1346,14 @@ export default function SkullKingMultiplayerPlayPage() {
         return (
       <main className="mx-auto min-h-screen w-full max-w-md px-4 py-8">
         <header>
-          <p className="text-sm font-semibold text-board-primary">
-            {room.currentRound}라운드
+          <p className="text-sm font-semibold">
+            Round {room.currentRound}
           </p>
     
           <h1 className="mt-1 text-2xl font-bold text-board-text">
+            카드 {room.currentRound}장
+            <br />
+            <br />
             라운드 결과
           </h1>
         </header>
@@ -1326,11 +1456,14 @@ export default function SkullKingMultiplayerPlayPage() {
     return (
       <main className="mx-auto min-h-screen w-full max-w-md px-4 py-8">
         <header>
-          <p className="text-sm font-semibold text-board-primary">
-            {room.currentRound}라운드
+          <p className="text-sm font-semibold">
+            Round {room.currentRound}
           </p>
   
           <h1 className="mt-1 text-2xl font-bold text-board-text">
+            카드 {room.currentRound}장
+            <br />
+            <br />
             결과 입력
           </h1>
   
@@ -1428,12 +1561,17 @@ export default function SkullKingMultiplayerPlayPage() {
             readOnly={isRoundReady}
           />
 
-          <div className="mt-5">
+          <div className="mt-5 mb-5">
             <LootAllianceSection
               currentPlayerId={session.playerId}
               allPlayers={players}
               lootAlliances={lootAlliances}
-              onChange={setLootAlliances}
+              allLootAlliances={roundLootAlliances}
+               onChange={(nextLootAlliances) => {
+                void handleLootAlliancesChange(
+                  nextLootAlliances,
+                );
+              }}
               disabled={isSubmittingRoundResult}
               readOnly={isRoundReady}
             />
@@ -1556,11 +1694,14 @@ export default function SkullKingMultiplayerPlayPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-md px-4 py-8">
       <header>
-        <p className="text-sm font-semibold text-board-primary">
-          {room.currentRound}라운드
+        <p className="text-sm font-semibold">
+          Round {room.currentRound}
         </p>
 
         <h1 className="mt-1 text-2xl font-bold text-board-text">
+          카드 {room.currentRound}장
+          <br />
+          <br />
           예측 입력
         </h1>
 

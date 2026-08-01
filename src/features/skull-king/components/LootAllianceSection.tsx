@@ -7,6 +7,13 @@ import type {
   PlayerId,
 } from "../types";
 
+import type {
+  SkullKingRoomLootAlliance,
+} from "../multiplayer/types";
+
+import PlayerName from "./PlayerName";
+
+
 import { MAX_LOOT_ALLIANCES } from "../constants";
 
 type LootAlliancePlayer = {
@@ -18,6 +25,10 @@ type LootAllianceSectionProps = {
   currentPlayerId: PlayerId;
   allPlayers: LootAlliancePlayer[];
   lootAlliances: LootAlliance[];
+
+  // 이번 라운드에 모든 사용자가 저장한 동맹
+  allLootAlliances?: SkullKingRoomLootAlliance[];
+  
   onChange: (lootAlliances: LootAlliance[]) => void;
   disabled?: boolean;
   readOnly?: boolean;
@@ -27,6 +38,7 @@ export default function LootAllianceSection({
   currentPlayerId,
   allPlayers,
   lootAlliances,
+  allLootAlliances = [],
   onChange,
   disabled = false,
   readOnly = false,
@@ -56,8 +68,18 @@ export default function LootAllianceSection({
         alliance.giverId === currentPlayerId
     );
 
-  const isAllianceLimitReached = lootAlliances.length >= MAX_LOOT_ALLIANCES;
-
+  const otherPlayersAllianceCount =
+    allLootAlliances.filter(
+      (alliance) =>
+        alliance.createdByPlayerId !== currentPlayerId,
+    ).length;
+  
+  const totalAllianceCount =
+    otherPlayersAllianceCount +
+    currentPlayerAlliances.length;
+  
+  const isAllianceLimitReached =
+    totalAllianceCount >= MAX_LOOT_ALLIANCES;
   function addLootAlliance() {
     if (disabled || 
         selectedReceiverId === null ||
@@ -114,11 +136,11 @@ export default function LootAllianceSection({
             <button
               key={player.id}
               type="button"
-              disabled={disabled}
+              disabled={disabled || isAllianceLimitReached}
               aria-disabled={disabled || readOnly}
               aria-pressed={isSelected || isAllianceLimitReached}
               onClick={() => {
-                if (disabled || readOnly) {
+                if (disabled || readOnly || isAllianceLimitReached) {
                   return;
                 }
                   setSelectedReceiverId((currentId) =>
@@ -151,11 +173,12 @@ export default function LootAllianceSection({
       </button>
 
       {currentPlayerAlliances.length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-board-border pt-3">
+        <div className="mt-4 border-t border-board-border pt-4">
           <p className="text-sm font-semibold text-board-text">
             추가된 동맹
           </p>
 
+          <div className="mt-3 flex flex-col gap-2">
           {currentPlayerAlliances.map(
             ({ alliance, index }) => (
               <div
@@ -180,8 +203,62 @@ export default function LootAllianceSection({
               </div>
             )
           )}
+          </div>
+        </div>
+      )}
+
+      {allLootAlliances.length > 0 && (
+        <div className="mt-4 border-t border-board-border pt-4">
+          <h3 className="text-sm font-semibold text-board-text">
+            이번 라운드 약탈품 동맹
+          </h3>
+      
+          <ul className="mt-3 space-y-2">
+            {allLootAlliances.map((alliance) => {
+              const giver = allPlayers.find(
+                (player) =>
+                  player.id ===
+                  alliance.giverPlayerId,
+              );
+      
+              const receiver = allPlayers.find(
+                (player) =>
+                  player.id ===
+                  alliance.receiverPlayerId,
+              );
+      
+              if (!giver || !receiver) {
+                return null;
+              }
+      
+              return (
+                <li
+                  key={alliance.id}
+                  className="flex items-center gap-2 rounded-xl bg-board-secondary px-3 py-2 text-sm"
+                >
+                  <PlayerName
+                    name={giver.name}
+                    isMe={giver.id === currentPlayerId}
+                    className="font-medium text-board-text"
+                  />
+                
+                  <span className="text-board-text-muted">
+                    →
+                  </span>
+                
+                  <PlayerName
+                    name={receiver.name}
+                    isMe={receiver.id === currentPlayerId}
+                    className="font-medium text-board-text"
+                  />
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </section>
+
+    
   );
 }
