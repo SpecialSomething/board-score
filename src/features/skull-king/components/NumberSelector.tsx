@@ -40,12 +40,13 @@ export default function NumberSelector({
           ? "bg-board-primary text-white"
           : "bg-board-secondary text-board-text";
   
-    const interactionClass =
-      disabled
-        ? "cursor-not-allowed opacity-50"
-        : readOnly
-          ? "cursor-default"
-          : "hover:bg-board-primary-soft";
+    const interactionClass = disabled
+      ? "cursor-not-allowed opacity-50"
+      : readOnly
+        ? "cursor-default"
+        : isSelected
+          ? "cursor-pointer"
+          : "cursor-pointer hover:bg-board-primary-soft";
   
     return (
       <button
