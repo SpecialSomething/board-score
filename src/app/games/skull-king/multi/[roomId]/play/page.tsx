@@ -16,6 +16,7 @@ import {
   getSkullKingRoomPlayers,
   advanceSkullKingRoom,
   updateSkullKingRoomStatus,
+  resetSkullKingRoomForRematch,
 } from "@/features/skull-king/multiplayer/rooms";
 
 import {
@@ -145,6 +146,8 @@ export default function SkullKingMultiplayerPlayPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] =
     useState(false);
+  const [bidAction, setBidAction] =
+    useState<"submit" | "cancel" | null>(null);
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
   const [isSessionLoaded, setIsSessionLoaded] =
@@ -153,6 +156,10 @@ export default function SkullKingMultiplayerPlayPage() {
     isSubmittingRoundResult,
     setIsSubmittingRoundResult,
   ] = useState(false);
+  const [
+    roundResultAction,
+    setRoundResultAction,
+  ] = useState<"submit" | "cancel" | null>(null); 
   const [
     isAdvancingRound,
     setIsAdvancingRound,
@@ -961,6 +968,16 @@ export default function SkullKingMultiplayerPlayPage() {
     room?.currentRound,
   ]);
 
+  useEffect(() => {
+    if (room?.status !== "waiting") {
+      return;
+    }
+  
+    router.replace(
+      `/games/skull-king/multi/${room.id}`,
+    );
+  }, [room?.status, room?.id, router]);
+
   const handleToggleBidReady = async () => {
     if (!room || !session) {
       return;
@@ -972,6 +989,9 @@ export default function SkullKingMultiplayerPlayPage() {
   
     try {
       setIsSubmitting(true);
+      setBidAction(
+        isBidReady ? "cancel" : "submit"
+      );
       setErrorMessage(null);
   
       // 이미 예측 완료한 상태라면 완료만 취소합니다.
@@ -1007,6 +1027,7 @@ export default function SkullKingMultiplayerPlayPage() {
       );
     } finally {
       setIsSubmitting(false);
+      setBidAction(null);
     }
   };
 
@@ -1041,6 +1062,9 @@ export default function SkullKingMultiplayerPlayPage() {
   
     try {
       setIsSubmittingRoundResult(true);
+      setRoundResultAction(
+        isRoundReady ? "cancel" : "submit"
+      );
       setErrorMessage(null);
   
       // 이미 준비 완료 상태라면 준비만 취소합니다.
@@ -1094,6 +1118,7 @@ export default function SkullKingMultiplayerPlayPage() {
       );
     } finally {
       setIsSubmittingRoundResult(false);
+      setRoundResultAction(null);
     }
   };
 
@@ -1246,8 +1271,35 @@ export default function SkullKingMultiplayerPlayPage() {
     }
   };
 
-  const handlePlayAgain = () => {
-    router.push("/games/skull-king/multi");
+  const handlePlayAgain = async () => {
+    if (!room || !session) {
+      return;
+    }
+  
+    if (session.playerId !== room.hostPlayerId) {
+      return;
+    }
+  
+    try {
+      setIsAdvancingRound(true);
+      setErrorMessage(null);
+  
+      await resetSkullKingRoomForRematch({
+        roomId: room.id,
+      });
+  
+      router.replace(
+        `/games/skull-king/multi/${room.id}`
+      );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "새 게임을 준비하지 못했습니다.",
+      );
+    } finally {
+      setIsAdvancingRound(false);
+    }
   };
   
   const handleGoHome = () => {
@@ -1317,10 +1369,6 @@ export default function SkullKingMultiplayerPlayPage() {
   }
 
   if (room.status === "waiting") {
-    router.replace(
-      `/games/skull-king/multi/${room.id}`,
-    );
-
     return null;
   }
 
@@ -1334,6 +1382,9 @@ export default function SkullKingMultiplayerPlayPage() {
         onPlayAgain={handlePlayAgain}
         onGoHome={handleGoHome}
         isPlayAgainLoading={isAdvancingRound}
+        canPlayAgain={
+          session.playerId === room.hostPlayerId
+        }
       />
     );
   }
@@ -1589,7 +1640,7 @@ export default function SkullKingMultiplayerPlayPage() {
             }`}
           >
             {isSubmittingRoundResult
-              ? isRoundReady
+              ? roundResultAction === "cancel"
                 ? "결과 제출 취소 중..."
                 : "결과 제출 중..."
               : isRoundReady
@@ -1732,7 +1783,7 @@ export default function SkullKingMultiplayerPlayPage() {
           }`}
         >
           {isSubmitting
-            ? isBidReady
+            ? bidAction === "cancel"
               ? "예측 완료 취소 중..."
               : "예측 완료 중..."
             : isBidReady
