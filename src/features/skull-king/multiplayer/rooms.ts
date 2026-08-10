@@ -552,3 +552,28 @@ export async function updateSkullKingRoomStatus({
     updatedAt: data.updated_at,
   };
 }
+
+type ResetSkullKingRoomForRematchParams = {
+  roomId: string;
+};
+
+export async function resetSkullKingRoomForRematch({
+  roomId,
+}: ResetSkullKingRoomForRematchParams): Promise<void> {
+  if (!roomId) {
+    throw new Error("방 ID가 필요합니다.");
+  }
+
+  const { error } = await supabase.rpc(
+    "reset_skull_king_room_for_rematch",
+    {
+      p_room_id: roomId,
+    },
+  );
+
+  if (error) {
+    throw new Error(
+      `새 게임을 준비하지 못했습니다: ${error.message}`,
+    );
+  }
+}
