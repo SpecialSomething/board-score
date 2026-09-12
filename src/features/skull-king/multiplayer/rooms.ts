@@ -1,5 +1,3 @@
-import { supabase } from "@/lib/supabase";
-
 import { ensureAnonymousUser } from "./auth";
 import { 
     createRoomCode,
@@ -7,6 +5,25 @@ import {
 } from "./room-code";
 
 import { SkullKingRoom, SkullKingRoomPlayer } from "./types";
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  runTransaction,
+  where,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
+
+import {
+  getFunctions,
+  httpsCallable,
+} from "firebase/functions";
 
 type CreateRoomResult = {
   roomId: string;
@@ -38,85 +55,73 @@ export async function createSkullKingRoom(
   ) {
     const roomCode = createRoomCode();
 
-    const {
-      data: room,
-      error: roomError,
-    } = await supabase
-      .from("skull_king_rooms")
-      .insert({
-        code: roomCode,
-        created_by_user_id: user.id,
-        status: "waiting",
-        current_round: 1,
-      })
-      .select("id, code")
-      .single();
+    const roomRef = doc(collection(db, "rooms"));
+    const playerRef = doc(collection(roomRef, "players"));
+    const roomCodeRef = doc(db, "roomCodes", roomCode);
 
-    if (roomError) {
-      // PostgreSQL unique_violation
-      if (roomError.code === "23505") {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const roomCodeSnapshot =
+          await transaction.get(roomCodeRef);
+
+        if (roomCodeSnapshot.exists()) {
+          throw new Error("ROOM_CODE_COLLISION");
+        }
+
+        transaction.set(roomRef, {
+          gameType: "skull-king",
+          code: roomCode,
+          createdByUserId: user.uid,
+          hostPlayerId: playerRef.id,
+          status: "waiting",
+          currentRound: 1,
+
+          playerCount: 1,
+          usedSeats: [1],
+
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+
+        transaction.set(playerRef, {
+          userId: user.uid,
+          name: trimmedName,
+          seat: 1,
+          isReady: true,
+          joinedAt: serverTimestamp(),
+        });
+
+        transaction.set(roomCodeRef, {
+          roomId: roomRef.id,
+          gameType: "skull-king",
+          createdAt: serverTimestamp(),
+        });
+      });
+
+      return {
+        roomId: roomRef.id,
+        roomCode,
+        playerId: playerRef.id,
+      };
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "ROOM_CODE_COLLISION"
+      ) {
         continue;
       }
 
-      throw new Error(
-        `방 생성에 실패했습니다: ${roomError.message}`,
-      );
+      const message =
+        error instanceof Error
+          ? error.message
+          : "알 수 없는 오류";
+
+      throw new Error(`방 생성에 실패했습니다: ${message}`);
     }
-
-    const {
-      data: player,
-      error: playerError,
-    } = await supabase
-      .from("skull_king_room_players")
-      .insert({
-        room_id: room.id,
-        user_id: user.id,
-        name: trimmedName,
-        seat: 1,
-        is_ready: true,
-      })
-      .select("id")
-      .single();
-
-    if (playerError) {
-      await supabase
-        .from("skull_king_rooms")
-        .delete()
-        .eq("id", room.id);
-
-      throw new Error(
-        `방장 생성에 실패했습니다: ${playerError.message}`,
-      );
-    }
-
-    const { error: hostUpdateError } =
-      await supabase
-        .from("skull_king_rooms")
-        .update({
-          host_player_id: player.id,
-        })
-        .eq("id", room.id);
-
-    if (hostUpdateError) {
-      await supabase
-        .from("skull_king_rooms")
-        .delete()
-        .eq("id", room.id);
-
-      throw new Error(
-        `방장 설정에 실패했습니다: ${hostUpdateError.message}`,
-      );
-    }
-
-    return {
-      roomId: room.id,
-      roomCode: room.code,
-      playerId: player.id,
-    };
   }
 
   throw new Error(
-    "방 코드를 생성하지 못했습니다. 다시 시도해주세요.",
+    "사용 가능한 방 코드를 생성하지 못했습니다. 다시 시도해주세요.",
   );
 }
 
@@ -154,128 +159,149 @@ export async function joinSkullKingRoom(
 
   const user = await ensureAnonymousUser();
 
-  const {
-    data: room,
-    error: roomError,
-  } = await supabase
-    .from("skull_king_rooms")
-    .select(
-      "id, code, status, current_round",
-    )
-    .eq("code", normalizedCode)
-    .maybeSingle();
+  const roomCodeRef = doc(
+    db,
+    "roomCodes",
+    normalizedCode,
+  );
 
-  if (roomError) {
-    throw new Error(
-      `방을 찾는 중 오류가 발생했습니다: ${roomError.message}`,
-    );
-  }
+  const roomCodeSnapshot =
+    await getDoc(roomCodeRef);
 
-  if (!room) {
+  if (!roomCodeSnapshot.exists()) {
     throw new Error(
       "존재하지 않는 방 코드입니다.",
     );
   }
 
-  if (room.status !== "waiting") {
-    throw new Error(
-      "이미 게임이 시작된 방입니다.",
-    );
-  }
+  const roomId =
+    roomCodeSnapshot.data().roomId as string;
+
+  const roomRef = doc(
+    db,
+    "rooms",
+    roomId,
+  );
+
+  const playersRef = collection(
+    roomRef,
+    "players",
+  );
 
   /*
-   * 같은 브라우저에서 이미 이 방에 참가한 경우
-   * 새로운 참가자를 만들지 않고 기존 참가자를 반환합니다.
+   * 같은 브라우저에서 이미 참가한 방이라면
+   * 새로운 player를 만들지 않고 기존 player를 반환합니다.
    */
-  const {
-    data: existingPlayer,
-    error: existingPlayerError,
-  } = await supabase
-    .from("skull_king_room_players")
-    .select("id, name")
-    .eq("room_id", room.id)
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const existingPlayerQuery = query(
+    playersRef,
+    where("userId", "==", user.uid),
+  );
 
-  if (existingPlayerError) {
-    throw new Error(
-      `기존 참가 정보를 확인하지 못했습니다: ${existingPlayerError.message}`,
-    );
-  }
+  const existingPlayerSnapshot =
+    await getDocs(existingPlayerQuery);
 
-  if (existingPlayer) {
+  if (!existingPlayerSnapshot.empty) {
+    const existingPlayer =
+      existingPlayerSnapshot.docs[0];
+
     return {
-      roomId: room.id,
-      roomCode: room.code,
+      roomId,
+      roomCode: normalizedCode,
       playerId: existingPlayer.id,
-      playerName: existingPlayer.name,
+      playerName:
+        existingPlayer.data().name as string,
     };
   }
 
-  const {
-    data: players,
-    error: playersError,
-  } = await supabase
-    .from("skull_king_room_players")
-    .select("seat")
-    .eq("room_id", room.id)
-    .order("seat", {
-      ascending: true,
-    });
+  const playerRef = doc(playersRef);
 
-  if (playersError) {
-    throw new Error(
-      `참가자 정보를 불러오지 못했습니다: ${playersError.message}`,
+  try {
+    await runTransaction(
+      db,
+      async (transaction) => {
+        const roomSnapshot =
+          await transaction.get(roomRef);
+
+        if (!roomSnapshot.exists()) {
+          throw new Error("ROOM_NOT_FOUND");
+        }
+
+        const room = roomSnapshot.data();
+
+        if (room.status !== "waiting") {
+          throw new Error(
+            "ROOM_ALREADY_STARTED",
+          );
+        }
+
+        const playerCount =
+          room.playerCount as number;
+
+        const usedSeats =
+          room.usedSeats as number[];
+
+        if (playerCount >= 8) {
+          throw new Error("ROOM_FULL");
+        }
+
+        let nextSeat = 1;
+
+        while (usedSeats.includes(nextSeat)) {
+          nextSeat += 1;
+        }
+
+        transaction.set(playerRef, {
+          userId: user.uid,
+          name: trimmedName,
+          seat: nextSeat,
+          isReady: false,
+          joinedAt: serverTimestamp(),
+        });
+
+        transaction.update(roomRef, {
+          playerCount: playerCount + 1,
+          usedSeats: [...usedSeats, nextSeat],
+          updatedAt: serverTimestamp(),
+        });
+      },
     );
-  }
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "ROOM_NOT_FOUND") {
+        throw new Error(
+          "존재하지 않는 방입니다.",
+        );
+      }
 
-  if (players.length >= 8) {
-    throw new Error(
-      "참가 인원이 가득 찬 방입니다.",
-    );
-  }
+      if (
+        error.message ===
+        "ROOM_ALREADY_STARTED"
+      ) {
+        throw new Error(
+          "이미 게임이 시작된 방입니다.",
+        );
+      }
 
-  const usedSeats = new Set(
-    players.map((player) => player.seat),
-  );
+      if (error.message === "ROOM_FULL") {
+        throw new Error(
+          "참가 인원이 가득 찬 방입니다.",
+        );
+      }
 
-  let nextSeat = 1;
-
-  while (usedSeats.has(nextSeat)) {
-    nextSeat += 1;
-  }
-
-  const {
-    data: player,
-    error: playerError,
-  } = await supabase
-    .from("skull_king_room_players")
-    .insert({
-      room_id: room.id,
-      user_id: user.id,
-      name: trimmedName,
-      seat: nextSeat,
-      is_ready: false,
-    })
-    .select("id")
-    .single();
-
-  if (playerError) {
-    if (playerError.code === "23505") {
       throw new Error(
-        "이미 사용 중인 이름이거나 참가 처리가 겹쳤습니다. 다시 시도해주세요.",
+        `방 참가에 실패했습니다: ${error.message}`,
       );
     }
 
     throw new Error(
-      `방 참가에 실패했습니다: ${playerError.message}`,
+      "방 참가 중 알 수 없는 오류가 발생했습니다.",
     );
   }
 
   return {
-    roomId: room.id,
-    roomCode: room.code,
-    playerId: player.id,
+    roomId,
+    roomCode: normalizedCode,
+    playerId: playerRef.id,
     playerName: trimmedName,
   };
 }
@@ -283,176 +309,229 @@ export async function joinSkullKingRoom(
 export async function getSkullKingRoom(
   roomId: string,
 ): Promise<SkullKingRoom> {
-  const { data, error } = await supabase
-    .from("skull_king_rooms")
-    .select(
-      "id, code, host_player_id, status, current_round, created_at, updated_at",
-    )
-    .eq("id", roomId)
-    .single();
+  const roomRef = doc(db, "rooms", roomId);
+  const roomSnapshot = await getDoc(roomRef);
 
-  if (error) {
+  if (!roomSnapshot.exists()) {
     throw new Error(
-      `방 정보를 불러오지 못했습니다: ${error.message}`,
+      "방 정보를 불러오지 못했습니다: 존재하지 않는 방입니다.",
     );
   }
 
+  const data = roomSnapshot.data();
+
   return {
-    id: data.id,
+    id: roomSnapshot.id,
     code: data.code,
-    hostPlayerId: data.host_player_id,
+    hostPlayerId: data.hostPlayerId,
     status: data.status,
-    currentRound: data.current_round,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
+    currentRound: data.currentRound,
+    createdAt: data.createdAt.toDate().toISOString(),
+    updatedAt: data.updatedAt.toDate().toISOString(),
   };
 }
 
 export async function getSkullKingRoomPlayers(
   roomId: string,
 ): Promise<SkullKingRoomPlayer[]> {
-  const { data: room, error: roomError } =
-    await supabase
-      .from("skull_king_rooms")
-      .select("host_player_id")
-      .eq("id", roomId)
-      .single();
+  const roomRef = doc(db, "rooms", roomId);
+  const roomSnapshot = await getDoc(roomRef);
 
-  if (roomError) {
+  if (!roomSnapshot.exists()) {
     throw new Error(
-      `방 정보를 불러오지 못했습니다: ${roomError.message}`,
+      "방 정보를 불러오지 못했습니다: 존재하지 않는 방입니다.",
     );
   }
 
-  const { data: players, error: playersError } =
-    await supabase
-      .from("skull_king_room_players")
-      .select(
-        `
-        id,
-        room_id,
-        name,
-        seat,
-        is_ready,
-        joined_at
-        `,
-      )
-      .eq("room_id", roomId)
-      .order("seat", {
-        ascending: true,
-      });
+  const roomData = roomSnapshot.data();
 
-  if (playersError) {
-    throw new Error(
-      `참가자 목록을 불러오지 못했습니다: ${playersError.message}`,
-    );
-  }
+  const playersRef = collection(
+    db,
+    "rooms",
+    roomId,
+    "players",
+  );
 
-  return (players ?? []).map((player) => ({
-    id: player.id,
-    roomId: player.room_id,
-    name: player.name,
-    seat: player.seat,
-    isHost:
-      player.id === room.host_player_id,
-    isReady: player.is_ready,
-    joinedAt: player.joined_at,
-  }));
+  const playersQuery = query(
+    playersRef,
+    orderBy("seat", "asc"),
+  );
+
+  const playersSnapshot = await getDocs(playersQuery);
+
+  return playersSnapshot.docs.map((playerDoc) => {
+    const player = playerDoc.data();
+
+    return {
+      id: playerDoc.id,
+      roomId,
+      name: player.name,
+      seat: player.seat,
+      isHost:
+        playerDoc.id === roomData.hostPlayerId,
+      isReady: player.isReady,
+      joinedAt:
+        player.joinedAt.toDate().toISOString(),
+    };
+  });
 }
 
 export async function updateSkullKingPlayerReady(
-    playerId: string,
-    isReady: boolean,
+  roomId: string,
+  playerId: string,
+  isReady: boolean,
 ): Promise<void> {
-    const { error } = await supabase
-        .from("skull_king_room_players")
-        .update({
-            is_ready: isReady,
-        })
-        .eq("id", playerId);
+  const playerRef = doc(
+    db,
+    "rooms",
+    roomId,
+    "players",
+    playerId,
+  );
 
-    if (error) {
-        throw new Error(
-            `준비 상태를 변경하지 못했습니다: ${error.message}`,
-        );
+  try {
+    await runTransaction(
+      db,
+      async (transaction) => {
+        const playerSnapshot =
+          await transaction.get(playerRef);
+
+        if (!playerSnapshot.exists()) {
+          throw new Error("PLAYER_NOT_FOUND");
+        }
+
+        transaction.update(playerRef, {
+          isReady,
+        });
+      },
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "PLAYER_NOT_FOUND"
+    ) {
+      throw new Error(
+        "참가자 정보를 찾을 수 없습니다.",
+      );
     }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
+    throw new Error(
+      `준비 상태를 변경하지 못했습니다: ${message}`,
+    );
+  }
 }
 
 export async function startSkullKingGame(
   roomId: string,
-  playerId: string,
+  hostPlayerId: string,
 ): Promise<void> {
-  const { data: room, error: roomError } =
-    await supabase
-      .from("skull_king_rooms")
-      .select(
-        `
-        id,
-        status,
-        host_player_id
-        `,
-      )
-      .eq("id", roomId)
-      .single();
+  const roomRef = doc(db, "rooms", roomId);
+  const playersRef = collection(
+    db,
+    "rooms",
+    roomId,
+    "players",
+  );
 
-  if (roomError) {
-    throw new Error(
-      `방 정보를 불러오지 못했습니다: ${roomError.message}`,
+  const playersSnapshot = await getDocs(playersRef);
+
+  try {
+    await runTransaction(
+      db,
+      async (transaction) => {
+        const roomSnapshot =
+          await transaction.get(roomRef);
+
+        if (!roomSnapshot.exists()) {
+          throw new Error("ROOM_NOT_FOUND");
+        }
+
+        const room = roomSnapshot.data();
+
+        if (room.hostPlayerId !== hostPlayerId) {
+          throw new Error("NOT_HOST");
+        }
+
+        if (room.status !== "waiting") {
+          throw new Error("ROOM_ALREADY_STARTED");
+        }
+
+        if (playersSnapshot.size < 2) {
+          throw new Error("NOT_ENOUGH_PLAYERS");
+        }
+
+        const allGuestsReady =
+          playersSnapshot.docs
+            .filter(
+              (playerDoc) =>
+                playerDoc.id !== hostPlayerId,
+            )
+            .every(
+              (playerDoc) =>
+                playerDoc.data().isReady === true,
+            );
+
+        if (!allGuestsReady) {
+          throw new Error("PLAYERS_NOT_READY");
+        }
+
+        transaction.update(roomRef, {
+          status: "bidding",
+          currentRound: 1,
+          updatedAt: serverTimestamp(),
+        });
+      },
     );
-  }
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "ROOM_NOT_FOUND") {
+        throw new Error(
+          "방 정보를 찾을 수 없습니다.",
+        );
+      }
 
-  if (room.host_player_id !== playerId) {
+      if (error.message === "NOT_HOST") {
+        throw new Error(
+          "방장만 게임을 시작할 수 있습니다.",
+        );
+      }
+
+      if (
+        error.message === "ROOM_ALREADY_STARTED"
+      ) {
+        throw new Error(
+          "이미 게임이 시작되었습니다.",
+        );
+      }
+
+      if (
+        error.message === "NOT_ENOUGH_PLAYERS"
+      ) {
+        throw new Error(
+          "게임을 시작하려면 최소 2명이 필요합니다.",
+        );
+      }
+
+      if (
+        error.message === "PLAYERS_NOT_READY"
+      ) {
+        throw new Error(
+          "모든 참가자가 준비해야 게임을 시작할 수 있습니다.",
+        );
+      }
+
+      throw new Error(
+        `게임을 시작하지 못했습니다: ${error.message}`,
+      );
+    }
+
     throw new Error(
-      "방장만 게임을 시작할 수 있습니다.",
-    );
-  }
-
-  if (room.status !== "waiting") {
-    throw new Error(
-      "이미 시작됐거나 시작할 수 없는 방입니다.",
-    );
-  }
-
-  const { data: players, error: playersError } =
-    await supabase
-      .from("skull_king_room_players")
-      .select("id, is_ready")
-      .eq("room_id", roomId);
-
-  if (playersError) {
-    throw new Error(
-      `참가자 정보를 불러오지 못했습니다: ${playersError.message}`,
-    );
-  }
-
-  if (!players || players.length < 2) {
-    throw new Error(
-      "게임을 시작하려면 최소 2명이 필요합니다.",
-    );
-  }
-
-  const areAllPlayersReady =
-    players.every((player) => player.is_ready);
-
-  if (!areAllPlayersReady) {
-    throw new Error(
-      "모든 참가자가 준비해야 합니다.",
-    );
-  }
-
-  const { error: updateError } =
-    await supabase
-      .from("skull_king_rooms")
-      .update({
-        status: "bidding",
-        current_round: 1,
-      })
-      .eq("id", roomId)
-      .eq("status", "waiting");
-
-  if (updateError) {
-    throw new Error(
-      `게임을 시작하지 못했습니다: ${updateError.message}`,
+      "게임 시작 중 알 수 없는 오류가 발생했습니다.",
     );
   }
 }
@@ -469,48 +548,109 @@ export async function advanceSkullKingRoom({
   currentRound,
 }: AdvanceSkullKingRoomParams): Promise<SkullKingRoom> {
   const isLastRound = currentRound >= 10;
+  const roomRef = doc(db, "rooms", roomId);
 
-  const { data, error } = await supabase
-    .from("skull_king_rooms")
-    .update(
-      isLastRound
-        ? {
-            status: "finished",
-            updated_at:
-              new Date().toISOString(),
-          }
-        : {
-            status: "bidding",
-            current_round:
-              currentRound + 1,
-            updated_at:
-              new Date().toISOString(),
-          },
-    )
-    .eq("id", roomId)
-    .eq("host_player_id", hostPlayerId)
-    .eq("status", "round-result")
-    .eq("current_round", currentRound)
-    .select()
-    .single();
+  try {
+    return await runTransaction(
+      db,
+      async (transaction) => {
+        const roomSnapshot =
+          await transaction.get(roomRef);
 
-  if (error) {
+        if (!roomSnapshot.exists()) {
+          throw new Error("ROOM_NOT_FOUND");
+        }
+
+        const room = roomSnapshot.data();
+
+        if (room.hostPlayerId !== hostPlayerId) {
+          throw new Error("NOT_HOST");
+        }
+
+        if (room.status !== "round-result") {
+          throw new Error("STATUS_CHANGED");
+        }
+
+        if (room.currentRound !== currentRound) {
+          throw new Error("ROUND_CHANGED");
+        }
+
+        const nextStatus = isLastRound
+          ? "finished"
+          : "bidding";
+
+        const nextRound = isLastRound
+          ? currentRound
+          : currentRound + 1;
+
+        transaction.update(roomRef, {
+          status: nextStatus,
+          currentRound: nextRound,
+          updatedAt: serverTimestamp(),
+        });
+
+        const now = new Date().toISOString();
+
+        return {
+          id: roomSnapshot.id,
+          code: room.code,
+          hostPlayerId: room.hostPlayerId,
+          status: nextStatus,
+          currentRound: nextRound,
+          createdAt:
+            room.createdAt
+              ?.toDate()
+              .toISOString() ?? now,
+          updatedAt: now,
+        };
+      },
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "ROOM_NOT_FOUND"
+    ) {
+      throw new Error("방 정보를 찾을 수 없습니다.");
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "NOT_HOST"
+    ) {
+      throw new Error(
+        "방장만 다음 라운드로 진행할 수 있습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "STATUS_CHANGED"
+    ) {
+      throw new Error(
+        "현재 라운드 결과 상태가 아닙니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "ROUND_CHANGED"
+    ) {
+      throw new Error(
+        "현재 라운드가 이미 변경되었습니다.",
+      );
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
       isLastRound
-        ? "게임을 종료하지 못했습니다."
-        : "다음 라운드로 넘어가지 못했습니다.",
+        ? `게임을 종료하지 못했습니다: ${message}`
+        : `다음 라운드로 넘어가지 못했습니다: ${message}`,
     );
   }
-
-  return {
-    id: data.id,
-    code: data.code,
-    hostPlayerId: data.host_player_id,
-    status: data.status,
-    currentRound: data.current_round,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
 }
 
 type UpdateSkullKingRoomStatusParams = {
@@ -526,31 +666,87 @@ export async function updateSkullKingRoomStatus({
   fromStatus,
   toStatus,
 }: UpdateSkullKingRoomStatusParams): Promise<SkullKingRoom> {
-  const { data, error } = await supabase
-    .from("skull_king_rooms")
-    .update({
-      status: toStatus,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", roomId)
-    .eq("host_player_id", hostPlayerId)
-    .eq("status", fromStatus)
-    .select()
-    .single();
+  const roomRef = doc(db, "rooms", roomId);
 
-  if (error) {
-    throw new Error("방 상태를 변경하지 못했습니다.");
+  try {
+    return await runTransaction(
+      db,
+      async (transaction) => {
+        const roomSnapshot =
+          await transaction.get(roomRef);
+
+        if (!roomSnapshot.exists()) {
+          throw new Error("ROOM_NOT_FOUND");
+        }
+
+        const room = roomSnapshot.data();
+
+        if (room.hostPlayerId !== hostPlayerId) {
+          throw new Error("NOT_HOST");
+        }
+
+        if (room.status !== fromStatus) {
+          throw new Error("STATUS_CHANGED");
+        }
+
+        transaction.update(roomRef, {
+          status: toStatus,
+          updatedAt: serverTimestamp(),
+        });
+
+        const now = new Date().toISOString();
+
+        return {
+          id: roomSnapshot.id,
+          code: room.code,
+          hostPlayerId: room.hostPlayerId,
+          status: toStatus,
+          currentRound: room.currentRound,
+          createdAt:
+            room.createdAt
+              ?.toDate()
+              .toISOString() ?? now,
+          updatedAt: now,
+        };
+      },
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "ROOM_NOT_FOUND"
+    ) {
+      throw new Error(
+        "방 정보를 찾을 수 없습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "NOT_HOST"
+    ) {
+      throw new Error(
+        "방장만 방 상태를 변경할 수 있습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "STATUS_CHANGED"
+    ) {
+      throw new Error(
+        "방 상태가 이미 변경되었습니다.",
+      );
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
+    throw new Error(
+      `방 상태를 변경하지 못했습니다: ${message}`,
+    );
   }
-
-  return {
-    id: data.id,
-    code: data.code,
-    hostPlayerId: data.host_player_id,
-    status: data.status,
-    currentRound: data.current_round,
-    createdAt: data.created_at,
-    updatedAt: data.updated_at,
-  };
 }
 
 type ResetSkullKingRoomForRematchParams = {
@@ -564,16 +760,33 @@ export async function resetSkullKingRoomForRematch({
     throw new Error("방 ID가 필요합니다.");
   }
 
-  const { error } = await supabase.rpc(
-    "reset_skull_king_room_for_rematch",
-    {
-      p_room_id: roomId,
-    },
-  );
+  try {
+    await ensureAnonymousUser();
 
-  if (error) {
+    const functions = getFunctions(
+      undefined,
+      "asia-northeast3",
+    );
+
+    const resetRoom = httpsCallable<
+      { roomId: string },
+      { success: boolean }
+    >(
+      functions,
+      "resetSkullKingRoomForRematch",
+    );
+
+    await resetRoom({
+      roomId,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `새 게임을 준비하지 못했습니다: ${error.message}`,
+      `새 게임을 준비하지 못했습니다: ${message}`,
     );
   }
 }

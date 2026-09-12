@@ -1,4 +1,17 @@
-import { supabase } from "@/lib/supabase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  runTransaction,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
+
+
 
 export interface SkullKingBid {
   id: string;
@@ -38,34 +51,61 @@ export async function getRoundBids(
   roomId: string,
   round: number,
 ): Promise<SkullKingBid[]> {
-
-  const { data, error } = await supabase
-    .from("skull_king_bids")
-    .select(
-      `
-        id,
-        room_id,
-        player_id,
-        round,
-        bid,
-        submitted_at,
-        updated_at,
-        is_ready
-      `,
-    )
-    .eq("room_id", roomId)
-    .eq("round", round)
-    .order("submitted_at", {
-      ascending: true,
-    });
-
-  if (error) {
-    throw new Error(
-      `예측 목록을 불러오지 못했습니다: ${error.message}`,
-    );
+  if (!roomId) {
+    throw new Error("방 ID가 필요합니다.");
   }
 
-  return (data ?? []) as SkullKingBid[];
+  try {
+    const bidsSnapshot = await getDocs(
+      collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+        String(round),
+        "bids",
+      ),
+    );
+
+    const bids: SkullKingBid[] =
+      bidsSnapshot.docs.map((bidDoc) => {
+        const data = bidDoc.data();
+
+        return {
+          id: bidDoc.id,
+          room_id: roomId,
+          player_id: bidDoc.id,
+          round,
+          bid: data.bid,
+          submitted_at:
+            data.submittedAt
+              ?.toDate()
+              .toISOString() ?? null,
+          updated_at:
+            data.updatedAt
+              ?.toDate()
+              .toISOString() ?? null,
+          is_ready: data.isReady,
+        };
+      });
+
+    bids.sort((a, b) =>
+      (a.submitted_at ?? "").localeCompare(
+        b.submitted_at ?? "",
+      ),
+    );
+
+    return bids;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
+    throw new Error(
+      `예측 목록을 불러오지 못했습니다: ${message}`,
+    );
+  }
 }
 
 /**
@@ -89,45 +129,76 @@ export async function submitBid({
     isReady,
   });
 
-  const now = new Date().toISOString();
+  try {
+    const roundRef = doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+    );
 
-  const { data, error } = await supabase
-    .from("skull_king_bids")
-    .upsert(
-      {
-        room_id: roomId,
-        player_id: playerId,
+    const bidRef = doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "bids",
+      playerId,
+    );
+
+    const existingBidSnapshot =
+      await getDoc(bidRef);
+
+    const now = new Date().toISOString();
+
+    const submittedAt =
+      existingBidSnapshot.exists()
+        ? existingBidSnapshot.data().submittedAt
+        : serverTimestamp();
+
+    const roundSnapshot = await getDoc(roundRef);
+
+    if (!roundSnapshot.exists()) {
+      await setDoc(roundRef, {
         round,
+      });
+    }
+    
+    await setDoc(
+      bidRef,
+      {
         bid,
-        submitted_at: now,
-        updated_at: now,
-        is_ready: isReady,
+        isReady,
+        submittedAt,
+        updatedAt: serverTimestamp(),
       },
       {
-        onConflict: "room_id,player_id,round",
+        merge: true,
       },
-    )
-    .select(
-      `
-        id,
-        room_id,
-        player_id,
-        round,
-        bid,
-        submitted_at,
-        updated_at,
-        is_ready
-      `,
-    )
-    .single();
+    );
 
-  if (error) {
+    return {
+      id: playerId,
+      room_id: roomId,
+      player_id: playerId,
+      round,
+      bid,
+      submitted_at: now,
+      updated_at: now,
+      is_ready: isReady,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `예측을 제출하지 못했습니다: ${error.message}`,
+      `예측을 제출하지 못했습니다: ${message}`,
     );
   }
-
-  return data as SkullKingBid;
 }
 
 /**
@@ -140,33 +211,47 @@ export async function getPlayerBid(
   playerId: string,
   round: number,
 ): Promise<SkullKingBid | null> {
+  try {
+    const bidRef = doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "bids",
+      playerId,
+    );
 
-  const { data, error } = await supabase
-    .from("skull_king_bids")
-    .select(
-      `
-        id,
-        room_id,
-        player_id,
-        round,
-        bid,
-        submitted_at,
-        updated_at,
-        is_ready
-      `,
-    )
-    .eq("room_id", roomId)
-    .eq("player_id", playerId)
-    .eq("round", round)
-    .maybeSingle();
+    const bidSnapshot = await getDoc(bidRef);
 
-  if (error) {
+    if (!bidSnapshot.exists()) {
+      return null;
+    }
+
+    const data = bidSnapshot.data();
+
+    return {
+      id: bidSnapshot.id,
+      room_id: roomId,
+      player_id: playerId,
+      round,
+      bid: data.bid,
+      submitted_at:
+        data.submittedAt?.toDate().toISOString() ?? null,
+      updated_at:
+        data.updatedAt?.toDate().toISOString() ?? null,
+      is_ready: data.isReady,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `플레이어의 예측을 불러오지 못했습니다: ${error.message}`,
+      `플레이어의 예측을 불러오지 못했습니다: ${message}`,
     );
   }
-
-  return data as SkullKingBid | null;
 }
 
 /**
@@ -181,23 +266,29 @@ export async function haveAllPlayersSubmittedBids({
     return false;
   }
 
+  try {
+    const bidsSnapshot = await getDocs(
+      collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+        String(round),
+        "bids",
+      ),
+    );
 
-  const { count, error } = await supabase
-    .from("skull_king_bids")
-    .select("id", {
-      count: "exact",
-      head: true,
-    })
-    .eq("room_id", roomId)
-    .eq("round", round);
+    return bidsSnapshot.size === playerCount;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
 
-  if (error) {
     throw new Error(
-      `예측 제출 현황을 확인하지 못했습니다: ${error.message}`,
+      `예측 제출 현황을 확인하지 못했습니다: ${message}`,
     );
   }
-
-  return count === playerCount;
 }
 
 /**
@@ -223,26 +314,50 @@ export async function advanceRoomToScoringIfReady({
     return false;
   }
 
+  const roomRef = doc(
+    db,
+    "rooms",
+    roomId,
+  );
 
-  const { data, error } = await supabase
-    .from("skull_king_rooms")
-    .update({
-      status: "scoring",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", roomId)
-    .eq("current_round", round)
-    .eq("status", "bidding")
-    .select("id")
-    .maybeSingle();
+  try {
+    return await runTransaction(
+      db,
+      async (transaction) => {
+        const roomSnapshot =
+          await transaction.get(roomRef);
 
-  if (error) {
+        if (!roomSnapshot.exists()) {
+          return false;
+        }
+
+        const room = roomSnapshot.data();
+
+        if (
+          room.currentRound !== round ||
+          room.status !== "bidding"
+        ) {
+          return false;
+        }
+
+        transaction.update(roomRef, {
+          status: "scoring",
+          updatedAt: serverTimestamp(),
+        });
+
+        return true;
+      },
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `결과 입력 단계로 전환하지 못했습니다: ${error.message}`,
+      `결과 입력 단계로 전환하지 못했습니다: ${message}`,
     );
   }
-
-  return data !== null;
 }
 
 function validateBidInput({
@@ -275,21 +390,71 @@ function validateBidInput({
 export async function getRoomBids(
   roomId: string,
 ): Promise<SkullKingBid[]> {
-  const { data, error } = await supabase
-    .from("skull_king_bids")
-    .select("*")
-    .eq("room_id", roomId)
-    .order("round", {
-      ascending: true,
-    });
-
-  if (error) {
-    throw new Error(
-      "전체 예측 정보를 불러오지 못했습니다.",
-    );
+  if (!roomId) {
+    throw new Error("방 ID가 필요합니다.");
   }
 
-  return data ?? [];
+  try {
+    const roundsSnapshot = await getDocs(
+      collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+      ),
+    );
+
+    const bids: SkullKingBid[] = [];
+
+    for (const roundDoc of roundsSnapshot.docs) {
+      const round = Number(roundDoc.id);
+
+      const bidsSnapshot = await getDocs(
+        collection(
+          db,
+          "rooms",
+          roomId,
+          "rounds",
+          roundDoc.id,
+          "bids",
+        ),
+      );
+
+      for (const bidDoc of bidsSnapshot.docs) {
+        const data = bidDoc.data();
+
+        bids.push({
+          id: bidDoc.id,
+          room_id: roomId,
+          player_id: bidDoc.id,
+          round,
+          bid: data.bid,
+          is_ready: data.isReady,
+          submitted_at:
+            data.submittedAt
+              ?.toDate()
+              .toISOString() ?? null,
+          updated_at:
+            data.updatedAt
+              ?.toDate()
+              .toISOString() ?? null,
+        });
+      }
+    }
+
+    bids.sort((a, b) => a.round - b.round);
+
+    return bids;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
+    throw new Error(
+      `전체 예측 정보를 불러오지 못했습니다: ${message}`,
+    );
+  }
 }
 
 type UpdateBidReadyParams = {
@@ -305,18 +470,29 @@ export async function updateBidReady({
   round,
   isReady,
 }: UpdateBidReadyParams): Promise<void> {
-  const { error } = await supabase
-    .from("skull_king_bids")
-    .update({
-      is_ready: isReady,
-    })
-    .eq("room_id", roomId)
-    .eq("player_id", playerId)
-    .eq("round", round);
+  try {
+    const bidRef = doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "bids",
+      playerId,
+    );
 
-  if (error) {
+    await updateDoc(bidRef, {
+      isReady,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `예측 준비 상태를 변경하지 못했습니다: ${error.message}`,
+      `예측 준비 상태를 변경하지 못했습니다: ${message}`,
     );
   }
 }

@@ -1,8 +1,26 @@
-import { supabase } from "@/lib/supabase";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
 
 import type {
   SkullKingRoundSubmission,
 } from "./types";
+
+import {
+  MAX_MERMAIDS_CAPTURED_BY_PIRATE,
+  MAX_PIRATES_CAPTURED_BY_SKULL_KING,
+  MAX_STANDARD_FOURTEENS,
+} from "../constants";
 
 type SubmitRoundSubmissionParams = {
   roomId: string;
@@ -34,40 +52,65 @@ export async function getRoundSubmissions(
 ): Promise<SkullKingRoundSubmission[]> {
   validateRoomAndRound(roomId, round);
 
-  const { data, error } = await supabase
-    .from("skull_king_round_submissions")
-    .select(
-      `
-      id,
-      room_id,
-      player_id,
-      round,
-      tricks,
-      standard_fourteens_count,
-      black_fourteen_captured,
-      mermaids_captured_by_pirate,
-      pirates_captured_by_skull_king,
-      skull_king_captured_by_mermaid,
-      is_ready,
-      submitted_at,
-      updated_at
-      `,
-    )
-    .eq("room_id", roomId)
-    .eq("round", round)
-    .order("submitted_at", {
-      ascending: true,
-    });
+  try {
+    const submissionsSnapshot = await getDocs(
+      collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+        String(round),
+        "submissions",
+      ),
+    );
 
-  if (error) {
+    const submissions: SkullKingRoundSubmission[] =
+      submissionsSnapshot.docs.map((submissionDoc) => {
+        const data = submissionDoc.data();
+
+        return {
+          id: submissionDoc.id,
+          roomId,
+          playerId: submissionDoc.id,
+          round,
+          tricks: data.tricks,
+          standardFourteensCount:
+            data.standardFourteensCount,
+          blackFourteenCaptured:
+            data.blackFourteenCaptured,
+          mermaidsCapturedByPirate:
+            data.mermaidsCapturedByPirate,
+          piratesCapturedBySkullKing:
+            data.piratesCapturedBySkullKing,
+          skullKingCapturedByMermaid:
+            data.skullKingCapturedByMermaid,
+          isReady: data.isReady,
+          submittedAt:
+            data.submittedAt?.toDate().toISOString() ??
+            null,
+          updatedAt:
+            data.updatedAt?.toDate().toISOString() ??
+            null,
+        };
+      });
+
+    submissions.sort((a, b) =>
+      (a.submittedAt ?? "").localeCompare(
+        b.submittedAt ?? "",
+      ),
+    );
+
+    return submissions;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `라운드 결과를 불러오지 못했습니다: ${error.message}`,
+      `라운드 결과를 불러오지 못했습니다: ${message}`,
     );
   }
-
-  return (data ?? []).map((submission) =>
-    mapRoundSubmission(submission),
-  );
 }
 
 /**
@@ -86,41 +129,60 @@ export async function getPlayerRoundSubmission(
     throw new Error("플레이어 ID가 필요합니다.");
   }
 
-  const { data, error } = await supabase
-    .from("skull_king_round_submissions")
-    .select(
-      `
-      id,
-      room_id,
-      player_id,
-      round,
-      tricks,
-      standard_fourteens_count,
-      black_fourteen_captured,
-      mermaids_captured_by_pirate,
-      pirates_captured_by_skull_king,
-      skull_king_captured_by_mermaid,
-      is_ready,
-      submitted_at,
-      updated_at
-      `,
-    )
-    .eq("room_id", roomId)
-    .eq("player_id", playerId)
-    .eq("round", round)
-    .maybeSingle();
+  try {
+    const submissionRef = doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "submissions",
+      playerId,
+    );
 
-  if (error) {
+    const submissionSnapshot =
+      await getDoc(submissionRef);
+
+    if (!submissionSnapshot.exists()) {
+      return null;
+    }
+
+    const data = submissionSnapshot.data();
+
+    return {
+      id: submissionSnapshot.id,
+      roomId,
+      playerId,
+      round,
+      tricks: data.tricks,
+      standardFourteensCount:
+        data.standardFourteensCount,
+      blackFourteenCaptured:
+        data.blackFourteenCaptured,
+      mermaidsCapturedByPirate:
+        data.mermaidsCapturedByPirate,
+      piratesCapturedBySkullKing:
+        data.piratesCapturedBySkullKing,
+      skullKingCapturedByMermaid:
+        data.skullKingCapturedByMermaid,
+      isReady: data.isReady,
+      submittedAt:
+        data.submittedAt?.toDate().toISOString() ??
+        null,
+      updatedAt:
+        data.updatedAt?.toDate().toISOString() ??
+        null,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `내 라운드 결과를 불러오지 못했습니다: ${error.message}`,
+      `내 라운드 결과를 불러오지 못했습니다: ${message}`,
     );
   }
-
-  if (!data) {
-    return null;
-  }
-
-  return mapRoundSubmission(data);
 }
 
 /**
@@ -154,60 +216,76 @@ export async function submitRoundSubmission({
     isReady,
   });
 
-  const now = new Date().toISOString();
+  try {
+    const submissionRef = doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "submissions",
+      playerId,
+    );
 
-  const { data, error } = await supabase
-    .from("skull_king_round_submissions")
-    .upsert(
+    const existingSubmissionSnapshot =
+      await getDoc(submissionRef);
+
+    const submittedAt =
+      existingSubmissionSnapshot.exists()
+        ? existingSubmissionSnapshot.data().submittedAt
+        : serverTimestamp();
+
+    await setDoc(
+      submissionRef,
       {
-        room_id: roomId,
-        player_id: playerId,
-        round,
         tricks,
-        standard_fourteens_count:
-          standardFourteensCount,
-        black_fourteen_captured:
-          blackFourteenCaptured,
-        mermaids_captured_by_pirate:
-          mermaidsCapturedByPirate,
-        pirates_captured_by_skull_king:
-          piratesCapturedBySkullKing,
-        skull_king_captured_by_mermaid:
-          skullKingCapturedByMermaid,
-        is_ready: isReady,
-        submitted_at: now,
-        updated_at: now,
+        standardFourteensCount,
+        blackFourteenCaptured,
+        mermaidsCapturedByPirate,
+        piratesCapturedBySkullKing,
+        skullKingCapturedByMermaid,
+        isReady,
+        submittedAt,
+        updatedAt: serverTimestamp(),
       },
       {
-        onConflict:
-          "room_id,round,player_id",
+        merge: true,
       },
-    )
-    .select(
-      `
-      id,
-      room_id,
-      player_id,
+    );
+
+    const now = new Date().toISOString();
+
+    return {
+      id: playerId,
+      roomId,
+      playerId,
       round,
       tricks,
-      standard_fourteens_count,
-      black_fourteen_captured,
-      mermaids_captured_by_pirate,
-      pirates_captured_by_skull_king,
-      skull_king_captured_by_mermaid,
-      is_ready,
-      submitted_at,
-      updated_at
-      `,
-    )
-    .single();  
-  if (error) {
+      standardFourteensCount,
+      blackFourteenCaptured,
+      mermaidsCapturedByPirate,
+      piratesCapturedBySkullKing,
+      skullKingCapturedByMermaid,
+      isReady,
+      submittedAt:
+        existingSubmissionSnapshot.exists()
+          ? existingSubmissionSnapshot
+              .data()
+              .submittedAt?.toDate()
+              .toISOString() ?? now
+          : now,
+      updatedAt: now,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `라운드 결과를 제출하지 못했습니다: ${error.message}`,
+      `라운드 결과를 제출하지 못했습니다: ${message}`,
     );
   }
-
-  return mapRoundSubmission(data);
 }
 
 type UpdateRoundReadyParams = {
@@ -218,53 +296,79 @@ type UpdateRoundReadyParams = {
   };
   
 export async function updateRoundReady({
-    roomId,
-    playerId,
-    round,
-    isReady,
-  }: UpdateRoundReadyParams): Promise<SkullKingRoundSubmission> {
-    validateRoomAndRound(roomId, round);
-  
-    if (!playerId) {
-      throw new Error("플레이어 ID가 필요합니다.");
-    }
-  
-    const { data, error } = await supabase
-      .from("skull_king_round_submissions")
-      .update({
-        is_ready: isReady,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("room_id", roomId)
-      .eq("player_id", playerId)
-      .eq("round", round)
-      .select(
-        `
-        id,
-        room_id,
-        player_id,
-        round,
-        tricks,
-        standard_fourteens_count,
-        black_fourteen_captured,
-        mermaids_captured_by_pirate,
-        pirates_captured_by_skull_king,
-        skull_king_captured_by_mermaid,
-        is_ready,
-        submitted_at,
-        updated_at
-        `,
-      )
-      .single();
-  
-    if (error) {
+  roomId,
+  playerId,
+  round,
+  isReady,
+}: UpdateRoundReadyParams): Promise<SkullKingRoundSubmission> {
+  validateRoomAndRound(roomId, round);
+
+  if (!playerId) {
+    throw new Error("플레이어 ID가 필요합니다.");
+  }
+
+  try {
+    const submissionRef = doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "submissions",
+      playerId,
+    );
+
+    await updateDoc(submissionRef, {
+      isReady,
+      updatedAt: serverTimestamp(),
+    });
+
+    const submissionSnapshot =
+      await getDoc(submissionRef);
+
+    if (!submissionSnapshot.exists()) {
       throw new Error(
-        `준비 상태를 변경하지 못했습니다: ${error.message}`,
+        "라운드 결과를 찾을 수 없습니다.",
       );
     }
-  
-    return mapRoundSubmission(data);
+
+    const data = submissionSnapshot.data();
+
+    return {
+      id: submissionSnapshot.id,
+      roomId,
+      playerId,
+      round,
+      tricks: data.tricks,
+      standardFourteensCount:
+        data.standardFourteensCount,
+      blackFourteenCaptured:
+        data.blackFourteenCaptured,
+      mermaidsCapturedByPirate:
+        data.mermaidsCapturedByPirate,
+      piratesCapturedBySkullKing:
+        data.piratesCapturedBySkullKing,
+      skullKingCapturedByMermaid:
+        data.skullKingCapturedByMermaid,
+      isReady: data.isReady,
+      submittedAt:
+        data.submittedAt?.toDate().toISOString() ??
+        null,
+      updatedAt:
+        data.updatedAt?.toDate().toISOString() ??
+        null,
+    };
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
+    throw new Error(
+      `준비 상태를 변경하지 못했습니다: ${message}`,
+    );
   }
+}
 
 /**
  * 현재 라운드에 모든 플레이어가 결과를 제출했는지 확인합니다.
@@ -283,66 +387,35 @@ export async function haveAllPlayersReady({
     return false;
   }
 
-  const { count, error } = await supabase
-    .from("skull_king_round_submissions")
-    .select("id", {
-      count: "exact",
-      head: true,
-    })
-    .eq("room_id", roomId)
-    .eq("round", round)
-    .eq("is_ready", true);
+  try {
+    const submissionsSnapshot = await getDocs(
+      collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+        String(round),
+        "submissions",
+      ),
+    );
 
-  if (error) {
+    const readyCount =
+      submissionsSnapshot.docs.filter(
+        (submissionDoc) =>
+          submissionDoc.data().isReady === true,
+      ).length;
+
+    return readyCount === playerCount;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `결과 제출 현황을 확인하지 못했습니다: ${error.message}`,
+      `결과 제출 현황을 확인하지 못했습니다: ${message}`,
     );
   }
-
-  return count === playerCount;
-}
-
-/**
- * Supabase의 snake_case 데이터를
- * 애플리케이션의 camelCase 타입으로 변환합니다.
- */
-function mapRoundSubmission(
-  submission: {
-    id: string;
-    room_id: string;
-    player_id: string;
-    round: number;
-    tricks: number;
-    standard_fourteens_count: number;
-    black_fourteen_captured: boolean;
-    mermaids_captured_by_pirate: number;
-    pirates_captured_by_skull_king: number;
-    skull_king_captured_by_mermaid: boolean;
-    is_ready: boolean;
-    submitted_at: string;
-    updated_at: string;
-  },
-): SkullKingRoundSubmission {
-  return {
-    id: submission.id,
-    roomId: submission.room_id,
-    playerId: submission.player_id,
-    round: submission.round,
-    tricks: submission.tricks,
-    standardFourteensCount:
-      submission.standard_fourteens_count,
-    blackFourteenCaptured:
-      submission.black_fourteen_captured,
-    mermaidsCapturedByPirate:
-      submission.mermaids_captured_by_pirate,
-    piratesCapturedBySkullKing:
-      submission.pirates_captured_by_skull_king,
-    skullKingCapturedByMermaid:
-      submission.skull_king_captured_by_mermaid,
-    isReady: submission.is_ready,
-    submittedAt: submission.submitted_at,
-    updatedAt: submission.updated_at,
-  };
 }
 
 function validateRoomAndRound(
@@ -388,19 +461,19 @@ function validateRoundSubmission({
   validateCount(
     standardFourteensCount,
     "일반 14 보너스 수",
-    round,
+    MAX_STANDARD_FOURTEENS,
   );
 
   validateCount(
     mermaidsCapturedByPirate,
     "해적이 잡은 인어 수",
-    round,
+    MAX_MERMAIDS_CAPTURED_BY_PIRATE,
   );
 
   validateCount(
     piratesCapturedBySkullKing,
     "스컬 킹이 잡은 해적 수",
-    round,
+    MAX_PIRATES_CAPTURED_BY_SKULL_KING,
   );
 }
 
@@ -427,35 +500,82 @@ export async function getRoomSubmissions(
     throw new Error("방 ID가 필요합니다.");
   }
 
-  const { data, error } = await supabase
-    .from("skull_king_round_submissions")
-    .select(
-      `
-      id,
-      room_id,
-      player_id,
-      round,
-      tricks,
-      standard_fourteens_count,
-      black_fourteen_captured,
-      mermaids_captured_by_pirate,
-      pirates_captured_by_skull_king,
-      skull_king_captured_by_mermaid,
-      is_ready,
-      submitted_at,
-      updated_at
-      `,
-    )
-    .eq("room_id", roomId)
-    .order("round", {
-      ascending: true,
-    });
+  try {
+    const roundsRef = collection(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+    );
 
-  if (error) {
+    const roundsQuery = query(
+      roundsRef,
+      orderBy("round", "asc"),
+    );
+
+    const roundsSnapshot =
+      await getDocs(roundsQuery);
+
+    const submissions: SkullKingRoundSubmission[] =
+      [];
+
+    for (const roundDoc of roundsSnapshot.docs) {
+      const round = Number(roundDoc.id);
+
+      const submissionsRef = collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+        roundDoc.id,
+        "submissions",
+      );
+
+      const submissionsSnapshot =
+        await getDocs(submissionsRef);
+
+      for (const submissionDoc of
+        submissionsSnapshot.docs) {
+        const data = submissionDoc.data();
+
+        submissions.push({
+          id: submissionDoc.id,
+          roomId,
+          playerId: submissionDoc.id,
+          round,
+          tricks: data.tricks,
+          standardFourteensCount:
+            data.standardFourteensCount,
+          blackFourteenCaptured:
+            data.blackFourteenCaptured,
+          mermaidsCapturedByPirate:
+            data.mermaidsCapturedByPirate,
+          piratesCapturedBySkullKing:
+            data.piratesCapturedBySkullKing,
+          skullKingCapturedByMermaid:
+            data.skullKingCapturedByMermaid,
+          isReady: data.isReady,
+          submittedAt:
+            data.submittedAt
+              ?.toDate()
+              .toISOString() ?? null,
+          updatedAt:
+            data.updatedAt
+              ?.toDate()
+              .toISOString() ?? null,
+        });
+      }
+    }
+
+    return submissions;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `전체 라운드 결과를 불러오지 못했습니다: ${error.message}`,
+      `전체 라운드 결과를 불러오지 못했습니다: ${message}`,
     );
   }
-
-  return (data ?? []).map(mapRoundSubmission);
 }

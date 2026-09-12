@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  collection,
+  onSnapshot,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
+
 import { useCallback, useEffect, useMemo, useState, useRef, } from "react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -72,7 +79,6 @@ import {
   saveRecentGame,
 } from "@/features/recent-game/storage";
 
-import { supabase } from "@/lib/supabase";
 
 
 
@@ -370,61 +376,67 @@ export default function SkullKingMultiplayerPlayPage() {
       return;
     }
   
-    const channel = supabase
-      .channel(
-        `loot-alliances:${room.id}:${room.currentRound}`,
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table:
-            "skull_king_loot_alliances",
-          filter: `room_id=eq.${room.id}`,
-        },
-        (payload) => {
-          const changedRound =
-            payload.eventType === "DELETE"
-              ? (
-                  payload.old as {
-                    round?: number;
-                  }
-                ).round
-              : (
-                  payload.new as {
-                    round?: number;
-                  }
-                ).round;
+    const alliancesRef = collection(
+      db,
+      "rooms",
+      room.id,
+      "rounds",
+      String(room.currentRound),
+      "lootAlliances",
+    );
   
-          if (
-            changedRound !==
-            room.currentRound
-          ) {
-            return;
-          }
+    const unsubscribe = onSnapshot(
+      alliancesRef,
+      (snapshot) => {
+        const nextRoundLootAlliances:
+          SkullKingRoomLootAlliance[] =
+          snapshot.docs.map((allianceDoc) => {
+            const data = allianceDoc.data();
   
-          void loadRoundLootAlliances();
-        },
-      )
-      .subscribe((status) => {
-        if (status === "CHANNEL_ERROR") {
-          console.error(
-            "약탈품 동맹 실시간 구독에 실패했습니다.",
-          );
-        }
-      });
+            return {
+              id: allianceDoc.id,
+              roomId: room.id,
+              round: room.currentRound,
+              giverPlayerId:
+                data.giverPlayerId,
+              receiverPlayerId:
+                data.receiverPlayerId,
+              createdByPlayerId:
+                data.createdByPlayerId,
+              createdAt:
+                data.createdAt
+                  ?.toDate()
+                  .toISOString() ??
+                new Date(0).toISOString(),
+            };
+          });
+  
+        nextRoundLootAlliances.sort(
+          (a, b) =>
+            a.createdAt.localeCompare(
+              b.createdAt,
+            ),
+        );
+  
+        setRoundLootAlliances(
+          nextRoundLootAlliances,
+        );
+      },
+      (error) => {
+        console.error(
+          "약탈품 동맹 실시간 구독에 실패했습니다.",
+          error,
+        );
+      },
+    );
   
     return () => {
-      void supabase.removeChannel(channel);
+      unsubscribe();
     };
   }, [
     isSessionLoaded,
     session,
-    room?.id,
-    room?.currentRound,
     room,
-    loadRoundLootAlliances,
   ]);
 
   /**

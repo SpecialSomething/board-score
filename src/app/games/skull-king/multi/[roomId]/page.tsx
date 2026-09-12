@@ -219,7 +219,7 @@ export default function SkullKingRoomPage() {
     !isStartingGame;
 
   async function handleToggleReady() {
-    if (!currentPlayer || isUpdatingReady) {
+    if (!currentPlayer || isUpdatingReady || !room) {
       return;
     }
   
@@ -231,6 +231,7 @@ export default function SkullKingRoomPage() {
   
     try {
       await updateSkullKingPlayerReady(
+        room.id,
         currentPlayer.id,
         nextIsReady,
       );

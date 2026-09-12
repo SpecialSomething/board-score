@@ -1,105 +1,144 @@
-import { supabase } from "@/lib/supabase";
+import {
+  collection,
+  doc,
+  getDocs,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
 
 import type {
   SkullKingRoomLootAlliance,
 } from "@/features/skull-king/multiplayer/types";
 
-type LootAllianceRow = {
-  id: string;
-  room_id: string;
-  round: number;
-  giver_player_id: string;
-  receiver_player_id: string;
-  created_by_player_id: string;
-  created_at: string;
-};
-
-function mapLootAllianceRow(
-  row: LootAllianceRow,
-): SkullKingRoomLootAlliance {
-  return {
-    id: row.id,
-    roomId: row.room_id,
-    round: row.round,
-    giverPlayerId: row.giver_player_id,
-    receiverPlayerId: row.receiver_player_id,
-    createdByPlayerId:
-      row.created_by_player_id,
-    createdAt: row.created_at,
-  };
-}
-
 export async function getRoundLootAlliances(
   roomId: string,
   round: number,
 ): Promise<SkullKingRoomLootAlliance[]> {
-  const { data, error } = await supabase
-    .from("skull_king_loot_alliances")
-    .select(
-      `
-        id,
-        room_id,
-        round,
-        giver_player_id,
-        receiver_player_id,
-        created_by_player_id,
-        created_at
-      `,
-    )
-    .eq("room_id", roomId)
-    .eq("round", round)
-    .order("created_at", {
-      ascending: true,
-    });
+  try {
+    const alliancesSnapshot = await getDocs(
+      collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+        String(round),
+        "lootAlliances",
+      ),
+    );
 
-  if (error) {
+    const alliances: SkullKingRoomLootAlliance[] =
+      alliancesSnapshot.docs.map((allianceDoc) => {
+        const data = allianceDoc.data();
+
+        return {
+          id: allianceDoc.id,
+          roomId,
+          round,
+          giverPlayerId: data.giverPlayerId,
+          receiverPlayerId: data.receiverPlayerId,
+          createdByPlayerId:
+            data.createdByPlayerId,
+          createdAt:
+            data.createdAt?.toDate().toISOString() ??
+            new Date(0).toISOString(),
+        };
+      });
+
+    alliances.sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+
+    return alliances;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `현재 라운드 약탈품 동맹 조회 실패: ${error.message}`,
+      `현재 라운드 약탈품 동맹 조회 실패: ${message}`,
     );
   }
-
-  return (data ?? []).map((row) =>
-    mapLootAllianceRow(
-      row as LootAllianceRow,
-    ),
-  );
 }
 
 export async function getRoomLootAlliances(
   roomId: string,
 ): Promise<SkullKingRoomLootAlliance[]> {
-  const { data, error } = await supabase
-    .from("skull_king_loot_alliances")
-    .select(
-      `
-        id,
-        room_id,
-        round,
-        giver_player_id,
-        receiver_player_id,
-        created_by_player_id,
-        created_at
-      `,
-    )
-    .eq("room_id", roomId)
-    .order("round", {
-      ascending: true,
-    })
-    .order("created_at", {
-      ascending: true,
-    });
-
-  if (error) {
-    throw new Error(
-      `전체 약탈품 동맹 조회 실패: ${error.message}`,
-    );
+  if (!roomId) {
+    throw new Error("방 ID가 필요합니다.");
   }
 
-  return (data ?? []).map((row) =>
-    mapLootAllianceRow(
-      row as LootAllianceRow,
-    ),
-  );
+  try {
+    const roundsSnapshot = await getDocs(
+      collection(
+        db,
+        "rooms",
+        roomId,
+        "rounds",
+      ),
+    );
+
+    const alliances: SkullKingRoomLootAlliance[] =
+      [];
+
+    for (const roundDoc of roundsSnapshot.docs) {
+      const round = Number(roundDoc.id);
+
+      const alliancesSnapshot = await getDocs(
+        collection(
+          db,
+          "rooms",
+          roomId,
+          "rounds",
+          roundDoc.id,
+          "lootAlliances",
+        ),
+      );
+
+      for (const allianceDoc of
+        alliancesSnapshot.docs) {
+        const data = allianceDoc.data();
+
+        alliances.push({
+          id: allianceDoc.id,
+          roomId,
+          round,
+          giverPlayerId: data.giverPlayerId,
+          receiverPlayerId:
+            data.receiverPlayerId,
+          createdByPlayerId:
+            data.createdByPlayerId,
+          createdAt:
+            data.createdAt
+              ?.toDate()
+              .toISOString() ?? null,
+        });
+      }
+    }
+
+    alliances.sort((a, b) => {
+      if (a.round !== b.round) {
+        return a.round - b.round;
+      }
+
+      return (a.createdAt ?? "").localeCompare(
+        b.createdAt ?? "",
+      );
+    });
+
+    return alliances;
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
+    throw new Error(
+      `전체 약탈품 동맹 조회 실패: ${message}`,
+    );
+  }
 }
 
 type ReplacePlayerLootAlliancesInput = {
@@ -132,45 +171,51 @@ export async function replacePlayerLootAlliances({
     );
   }
 
-  const { error: deleteError } =
-    await supabase
-      .from("skull_king_loot_alliances")
-      .delete()
-      .eq("room_id", roomId)
-      .eq("round", round)
-      .eq(
-        "created_by_player_id",
-        playerId,
-      );
-
-  if (deleteError) {
-    throw new Error(
-      `기존 약탈품 동맹 삭제 실패: ${deleteError.message}`,
+  try {
+    const alliancesRef = collection(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "lootAlliances",
     );
-  }
 
-  if (receiverIds.length === 0) {
-    return;
-  }
+    const alliancesSnapshot =
+      await getDocs(alliancesRef);
 
-  const rows = receiverIds.map(
-    (receiverId) => ({
-      room_id: roomId,
-      round,
-      giver_player_id: playerId,
-      receiver_player_id: receiverId,
-      created_by_player_id: playerId,
-    }),
-  );
+    const batch = writeBatch(db);
 
-  const { error: insertError } =
-    await supabase
-      .from("skull_king_loot_alliances")
-      .insert(rows);
+    for (const allianceDoc of alliancesSnapshot.docs) {
+      const data = allianceDoc.data();
 
-  if (insertError) {
+      if (
+        data.createdByPlayerId === playerId
+      ) {
+        batch.delete(allianceDoc.ref);
+      }
+    }
+
+    for (const receiverId of receiverIds) {
+      const allianceRef = doc(alliancesRef);
+
+      batch.set(allianceRef, {
+        giverPlayerId: playerId,
+        receiverPlayerId: receiverId,
+        createdByPlayerId: playerId,
+        createdAt: serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
     throw new Error(
-      `약탈품 동맹 저장 실패: ${insertError.message}`,
+      `약탈품 동맹 저장 실패: ${message}`,
     );
   }
 }
