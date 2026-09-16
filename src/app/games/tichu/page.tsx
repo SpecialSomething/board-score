@@ -4,8 +4,6 @@ import { useMemo, useState, useEffect, Suspense } from "react";
 
 import { useRouter } from "next/navigation";
 
-import Header from "@/components/Header";
-
 import { calculateTichuRound } from "@/features/tichu/calculator";
 
 import GameSetup from "@/features/tichu/components/GameSetup";
@@ -202,8 +200,6 @@ function TichuPageContent() {
     return (
       <div className="min-h-screen bg-board-bg">
         <main className="mx-auto w-full max-w-[393px] p-6 font-sans text-board-text">
-          <Header />
-  
           <p className="mt-6">
             게임을 불러오는 중입니다...
           </p>
@@ -216,8 +212,6 @@ function TichuPageContent() {
     <>
     <div className="min-h-screen bg-board-bg">
       <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-board-text">
-        <Header />
-
         {!setup || !gameResult ? (
           <GameSetup
             onStart={handleStartGame}

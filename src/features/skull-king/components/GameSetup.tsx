@@ -72,14 +72,6 @@ export default function GameSetup({ onStart }: GameSetupProps) {
 
   return (
       <section className="flex w-full flex-col gap-4 font-sans text-board-text">
-        <header>
-          <h1 className="text-[28px] font-bold leading-normal tracking-tight">
-            Skull King 스컬킹
-          </h1>
-          <p className="mt-1 text-[15px] leading-normal">
-            게임을 시작해볼까요?
-          </p>
-        </header>
 
         <div className="flex flex-col gap-5 overflow-hidden rounded-2xl bg-board-surface p-5 shadow-[0_4px_4px_rgba(0,0,0,0.05)]">
           <h2 className="text-xl font-semibold leading-normal">게임 설정</h2>

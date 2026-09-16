@@ -10,8 +10,6 @@ import Link from "next/link";
 
 import { useParams, useRouter, } from "next/navigation";
 
-import Header from "@/components/Header";
-
 import {
   getSkullKingRoom,
   getSkullKingRoomPlayers,
@@ -159,7 +157,9 @@ export default function SkullKingRoomPage() {
   if (!isSessionLoaded) {
     return (
       <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
-        <Header title="스컬킹 대기실" />
+        <h2 className="text-2xl font-bold text-board-text">
+          대기실
+        </h2>
   
         <p className="mt-8 text-board-subtext">
           참가 정보를 확인하는 중입니다.
@@ -170,9 +170,8 @@ export default function SkullKingRoomPage() {
 
   if (!multiplayerSession || multiplayerSession.roomId !== params.roomId) {
       return (
-          <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6">
-              <Header title="스컬킹" />  
-              <p className="mt-8 text-board-text">
+          <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6">  
+              <p className="text-board-text">
                   이 방의 참가 정보가 없습니다.
               </p>  
               <Link
@@ -188,7 +187,9 @@ export default function SkullKingRoomPage() {
   if (isLoading) {
     return (
       <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
-        <Header title="스컬킹 대기실" />
+        <h2 className="text-2xl font-bold text-board-text">
+          대기실
+        </h2>
 
         <p className="mt-8 text-board-subtext">
           대기실을 불러오는 중입니다.
@@ -294,7 +295,9 @@ export default function SkullKingRoomPage() {
   
   return (
     <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
-      <Header title="스컬킹 대기실" />
+      <h2 className="text-2xl font-bold text-board-text">
+        대기실
+      </h2>
 
       {errorMessage && (
         <p

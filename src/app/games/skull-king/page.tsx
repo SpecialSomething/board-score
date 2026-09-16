@@ -2,18 +2,19 @@
 
 import { useRouter } from "next/navigation";
 
-import Header from "@/components/Header";
-
 export default function SkullKingModePage() {
   const router = useRouter();
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-6 px-4 py-6">
-      <Header 
-        title="스컬킹"
-        description="점수를 입력할 방식을 선택하세요."
-      />
-
+    <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 px-6 py-6">
+      <div>
+        <h2 className="text-2xl font-bold text-board-text">
+          계산 방식 선택
+        </h2>
+        <p className="mt-1 text-sm text-board-muted">
+          점수를 입력할 방식을 선택하세요.
+        </p>
+      </div>
       <section className="flex flex-col gap-3">
         <button
           type="button"

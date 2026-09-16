@@ -1,14 +1,16 @@
 import Link from "next/link";
 
-import Header from "@/components/Header";
-
 export default function SkullKingMultiPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
-      <Header
-        title="각자 입력하기"
-        description="방을 만들거나 기존 방에 참가하세요."
-      />
+      <div>
+        <h2 className="text-2xl font-bold text-board-text">
+          각자 입력하기
+        </h2>
+        <p className="mt-1 text-sm text-board-muted">
+          방을 만들거나 기존 방에 참가하세요.
+        </p>
+      </div>
 
       <div className="mt-8 flex flex-col gap-4">
         <Link

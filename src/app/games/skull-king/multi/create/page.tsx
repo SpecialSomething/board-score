@@ -6,8 +6,6 @@ import type { SubmitEvent } from "react";
 
 import { useRouter } from "next/navigation";
 
-import Header from "@/components/Header";
-
 import { createSkullKingRoom } from "@/features/skull-king/multiplayer/rooms";
 
 import { saveMultiplayerSession } from "@/features/skull-king/multiplayer/session";
@@ -78,10 +76,14 @@ export default function CreateSkullKingRoomPage() {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-[393px] bg-board-bg p-6 font-sans">
-      <Header
-        title="방 만들기"
-        description="게임에서 사용할 이름을 입력하세요."
-      />
+      <div>
+        <h2 className="text-2xl font-bold text-board-text">
+          방 만들기
+        </h2>
+        <p className="mt-1 text-sm text-board-muted">
+          게임에서 사용할 이름을 입력하세요.
+        </p>
+      </div>
 
       <form
         onSubmit={handleSubmit}

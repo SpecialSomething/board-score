@@ -1,6 +1,5 @@
 "use client";
 
-import Header from "@/components/Header";
 import { calculateSkullKingRound } from "@/features/skull-king/calculator";
 import GameSetup from "@/features/skull-king/components/GameSetup";
 import RoundForm from "@/features/skull-king/components/RoundForm";
@@ -190,7 +189,6 @@ function SkullKingPageContent() {
     <>
       <div className="min-h-screen bg-board-bg">
         <main className="mx-auto flex w-full max-w-[393px] flex-col gap-6 p-6 font-sans text-board-text">
-          <Header />
 
           {!isGameStarted ? (
             <GameSetup
