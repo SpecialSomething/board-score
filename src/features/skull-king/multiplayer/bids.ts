@@ -5,7 +5,6 @@ import {
   getDocs,
   serverTimestamp,
   setDoc,
-  updateDoc,
   runTransaction,
 } from "firebase/firestore";
 
@@ -41,7 +40,7 @@ interface CheckAllBidsSubmittedParams {
 interface AdvanceToScoringParams {
   roomId: string;
   round: number;
-  playerCount: number;
+  playerIds: string[];
 }
 
 /**
@@ -301,23 +300,24 @@ export async function haveAllPlayersSubmittedBids({
 export async function advanceRoomToScoringIfReady({
   roomId,
   round,
-  playerCount,
+  playerIds,
 }: AdvanceToScoringParams): Promise<boolean> {
-  const allSubmitted =
-    await haveAllPlayersSubmittedBids({
-      roomId,
-      round,
-      playerCount,
-    });
-
-  if (!allSubmitted) {
-    return false;
-  }
-
   const roomRef = doc(
     db,
     "rooms",
     roomId,
+  );
+
+  const bidRefs = playerIds.map((playerId) =>
+    doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(round),
+      "bids",
+      playerId,
+    ),
   );
 
   try {
@@ -337,6 +337,25 @@ export async function advanceRoomToScoringIfReady({
           room.currentRound !== round ||
           room.status !== "bidding"
         ) {
+          return false;
+        }
+
+        const bidSnapshots =
+          await Promise.all(
+            bidRefs.map((bidRef) =>
+              transaction.get(bidRef),
+            ),
+          );
+
+        const allPlayersReady =
+          bidSnapshots.length === playerIds.length &&
+          bidSnapshots.every(
+            (bidSnapshot) =>
+              bidSnapshot.exists() &&
+              bidSnapshot.data().isReady === true,
+          );
+
+        if (!allPlayersReady) {
           return false;
         }
 
@@ -470,22 +489,83 @@ export async function updateBidReady({
   round,
   isReady,
 }: UpdateBidReadyParams): Promise<void> {
-  try {
-    const bidRef = doc(
-      db,
-      "rooms",
-      roomId,
-      "rounds",
-      String(round),
-      "bids",
-      playerId,
-    );
+  const roomRef = doc(
+    db,
+    "rooms",
+    roomId,
+  );
 
-    await updateDoc(bidRef, {
-      isReady,
-      updatedAt: serverTimestamp(),
-    });
+  const bidRef = doc(
+    db,
+    "rooms",
+    roomId,
+    "rounds",
+    String(round),
+    "bids",
+    playerId,
+  );
+
+  try {
+    await runTransaction(
+      db,
+      async (transaction) => {
+        const roomSnapshot =
+          await transaction.get(roomRef);
+
+        if (!roomSnapshot.exists()) {
+          throw new Error("ROOM_NOT_FOUND");
+        }
+
+        const room = roomSnapshot.data();
+
+        if (
+          room.status !== "bidding" ||
+          room.currentRound !== round
+        ) {
+          throw new Error("ROUND_ALREADY_STARTED");
+        }
+
+        const bidSnapshot =
+          await transaction.get(bidRef);
+
+        if (!bidSnapshot.exists()) {
+          throw new Error("BID_NOT_FOUND");
+        }
+
+        transaction.update(bidRef, {
+          isReady,
+          updatedAt: serverTimestamp(),
+        });
+      },
+    );
   } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "ROOM_NOT_FOUND"
+    ) {
+      throw new Error(
+        "방 정보를 찾을 수 없습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "BID_NOT_FOUND"
+    ) {
+      throw new Error(
+        "제출한 예측을 찾을 수 없습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "ROUND_ALREADY_STARTED"
+    ) {
+      throw new Error(
+        "이미 결과 입력이 시작되어 예측 완료 상태를 변경할 수 없습니다.",
+      );
+    }
+
     const message =
       error instanceof Error
         ? error.message

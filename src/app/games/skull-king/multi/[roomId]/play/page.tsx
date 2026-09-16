@@ -15,6 +15,7 @@ import {
   getRoomBids,
   submitBid,
   updateBidReady,
+  advanceRoomToScoringIfReady,
   type SkullKingBid,
 } from "@/features/skull-king/multiplayer/bids";
 
@@ -24,6 +25,7 @@ import {
   advanceSkullKingRoom,
   updateSkullKingRoomStatus,
   resetSkullKingRoomForRematch,
+  finalizeSkullKingRound,
 } from "@/features/skull-king/multiplayer/rooms";
 
 import {
@@ -43,6 +45,7 @@ import {
   submitRoundSubmission,
   getRoomSubmissions,
   updateRoundReady,
+  haveAllPlayersReady,
 } from "@/features/skull-king/multiplayer/round-submissions";
 
 import BonusSection from "@/features/skull-king/components/BonusSection";
@@ -1182,14 +1185,15 @@ export default function SkullKingMultiplayerPlayPage() {
   
     try {
       setIsAdvancingRound(true);
+      setErrorMessage(null);
   
-      await updateSkullKingRoomStatus({
+      await finalizeSkullKingRound({
         roomId: room.id,
         hostPlayerId: session.playerId,
-        fromStatus: "scoring",
-        toStatus: "round-result",
+        currentRound: room.currentRound,
+        playerIds: players.map((player) => player.id),
       });
-  
+      
       await loadGameData();
     } catch (error) {
       setErrorMessage(
@@ -1264,13 +1268,21 @@ export default function SkullKingMultiplayerPlayPage() {
     try {
       setIsAdvancingRound(true);
   
-      await updateSkullKingRoomStatus({
-        roomId: room.id,
-        hostPlayerId: session.playerId,
-        fromStatus: "bidding",
-        toStatus: "scoring",
-      });
-  
+      const didAdvance =
+        await advanceRoomToScoringIfReady({
+          roomId: room.id,
+          round: room.currentRound,
+          playerIds: players.map(
+            (player) => player.id,
+          ),
+        });
+      
+      if (!didAdvance) {
+        throw new Error(
+          "예측 완료를 취소한 플레이어가 있습니다. 모든 플레이어가 다시 완료한 뒤 진행해주세요.",
+        );
+      }
+      
       await loadGameData();
     } catch (error) {
       setErrorMessage(
@@ -1726,8 +1738,12 @@ export default function SkullKingMultiplayerPlayPage() {
                 className="mt-5 w-full rounded-xl bg-board-primary px-4 py-3 font-semibold text-white transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isAdvancingRound
-                  ? "결과 불러오는 중..."
-                  : "라운드 결과 보기"}
+                  ? room.currentRound >= 10
+                    ? "최종 결과 불러오는 중..."
+                    : "결과 불러오는 중..."
+                  : room.currentRound >= 10
+                    ? "최종 결과 보기"
+                    : "라운드 결과 보기"}
               </button>
             ) : (
               <p className="mt-4 text-sm text-board-text-muted">

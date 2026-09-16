@@ -7,7 +7,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  updateDoc,
+  runTransaction,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -308,6 +308,12 @@ export async function updateRoundReady({
   }
 
   try {
+    const roomRef = doc(
+      db,
+      "rooms",
+      roomId,
+    );
+    
     const submissionRef = doc(
       db,
       "rooms",
@@ -317,21 +323,43 @@ export async function updateRoundReady({
       "submissions",
       playerId,
     );
-
-    await updateDoc(submissionRef, {
-      isReady,
-      updatedAt: serverTimestamp(),
-    });
-
+    
     const submissionSnapshot =
-      await getDoc(submissionRef);
-
-    if (!submissionSnapshot.exists()) {
-      throw new Error(
-        "라운드 결과를 찾을 수 없습니다.",
+      await runTransaction(
+        db,
+        async (transaction) => {
+          const roomSnapshot =
+            await transaction.get(roomRef);
+    
+          if (!roomSnapshot.exists()) {
+            throw new Error("ROOM_NOT_FOUND");
+          }
+    
+          const room = roomSnapshot.data();
+    
+          if (
+            room.status !== "scoring" ||
+            room.currentRound !== round
+          ) {
+            throw new Error("ROUND_ALREADY_FINALIZED");
+          }
+    
+          const currentSubmissionSnapshot =
+            await transaction.get(submissionRef);
+    
+          if (!currentSubmissionSnapshot.exists()) {
+            throw new Error("SUBMISSION_NOT_FOUND");
+          }
+    
+          transaction.update(submissionRef, {
+            isReady,
+            updatedAt: serverTimestamp(),
+          });
+    
+          return currentSubmissionSnapshot;
+        },
       );
-    }
-
+    
     const data = submissionSnapshot.data();
 
     return {
@@ -363,6 +391,29 @@ export async function updateRoundReady({
       error instanceof Error
         ? error.message
         : "알 수 없는 오류";
+
+    if (
+      error instanceof Error &&
+      error.message === "ROOM_NOT_FOUND"
+    ) {
+      throw new Error("방 정보를 찾을 수 없습니다.");
+    }
+    
+    if (
+      error instanceof Error &&
+      error.message === "SUBMISSION_NOT_FOUND"
+    ) {
+      throw new Error("라운드 결과를 찾을 수 없습니다.");
+    }
+    
+    if (
+      error instanceof Error &&
+      error.message === "ROUND_ALREADY_FINALIZED"
+    ) {
+      throw new Error(
+        "이미 라운드 결과가 확정되어 제출 상태를 변경할 수 없습니다.",
+      );
+    }
 
     throw new Error(
       `준비 상태를 변경하지 못했습니다: ${message}`,

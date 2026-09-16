@@ -567,7 +567,11 @@ export async function advanceSkullKingRoom({
           throw new Error("NOT_HOST");
         }
 
-        if (room.status !== "round-result") {
+        const canAdvance =
+          room.status === "round-result" ||
+          (isLastRound && room.status === "scoring");
+        
+        if (!canAdvance) {
           throw new Error("STATUS_CHANGED");
         }
 
@@ -649,6 +653,158 @@ export async function advanceSkullKingRoom({
       isLastRound
         ? `게임을 종료하지 못했습니다: ${message}`
         : `다음 라운드로 넘어가지 못했습니다: ${message}`,
+    );
+  }
+}
+
+type FinalizeSkullKingRoundParams = {
+  roomId: string;
+  hostPlayerId: string;
+  currentRound: number;
+  playerIds: string[];
+};
+
+export async function finalizeSkullKingRound({
+  roomId,
+  hostPlayerId,
+  currentRound,
+  playerIds,
+}: FinalizeSkullKingRoundParams): Promise<SkullKingRoom> {
+  const roomRef = doc(db, "rooms", roomId);
+
+  const submissionRefs = playerIds.map((playerId) =>
+    doc(
+      db,
+      "rooms",
+      roomId,
+      "rounds",
+      String(currentRound),
+      "submissions",
+      playerId,
+    ),
+  );
+
+  try {
+    return await runTransaction(
+      db,
+      async (transaction) => {
+        const roomSnapshot =
+          await transaction.get(roomRef);
+
+        if (!roomSnapshot.exists()) {
+          throw new Error("ROOM_NOT_FOUND");
+        }
+
+        const room = roomSnapshot.data();
+
+        if (room.hostPlayerId !== hostPlayerId) {
+          throw new Error("NOT_HOST");
+        }
+
+        if (room.status !== "scoring") {
+          throw new Error("STATUS_CHANGED");
+        }
+
+        if (room.currentRound !== currentRound) {
+          throw new Error("ROUND_CHANGED");
+        }
+
+        const submissionSnapshots =
+          await Promise.all(
+            submissionRefs.map((submissionRef) =>
+              transaction.get(submissionRef),
+            ),
+          );
+
+        const allPlayersReady =
+          submissionSnapshots.length === playerIds.length &&
+          submissionSnapshots.every(
+            (submissionSnapshot) =>
+              submissionSnapshot.exists() &&
+              submissionSnapshot.data().isReady === true,
+          );
+
+        if (!allPlayersReady) {
+          throw new Error("PLAYERS_NOT_READY");
+        }
+
+        const isLastRound = currentRound >= 10;
+        const nextStatus = isLastRound
+          ? "finished"
+          : "round-result";
+
+        transaction.update(roomRef, {
+          status: nextStatus,
+          updatedAt: serverTimestamp(),
+        });
+
+        const now = new Date().toISOString();
+
+        return {
+          id: roomSnapshot.id,
+          code: room.code,
+          hostPlayerId: room.hostPlayerId,
+          status: nextStatus,
+          currentRound: room.currentRound,
+          createdAt:
+            room.createdAt
+              ?.toDate()
+              .toISOString() ?? now,
+          updatedAt: now,
+        };
+      },
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message === "ROOM_NOT_FOUND"
+    ) {
+      throw new Error("방 정보를 찾을 수 없습니다.");
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "NOT_HOST"
+    ) {
+      throw new Error(
+        "방장만 라운드 결과를 확정할 수 있습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "STATUS_CHANGED"
+    ) {
+      throw new Error(
+        "방 상태가 이미 변경되었습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "ROUND_CHANGED"
+    ) {
+      throw new Error(
+        "현재 라운드가 이미 변경되었습니다.",
+      );
+    }
+
+    if (
+      error instanceof Error &&
+      error.message === "PLAYERS_NOT_READY"
+    ) {
+      throw new Error(
+        "결과 제출을 취소한 플레이어가 있습니다. 모든 플레이어가 다시 제출한 뒤 진행해주세요.",
+      );
+    }
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "알 수 없는 오류";
+
+    throw new Error(
+      `라운드 결과를 확정하지 못했습니다: ${message}`,
     );
   }
 }
