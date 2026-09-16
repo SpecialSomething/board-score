@@ -1466,30 +1466,43 @@ export default function SkullKingMultiplayerPlayPage() {
                       <PlayerName
                         name={player.name}
                         isMe={player.id === session.playerId}
-                        className="font-medium text-board-text"
+                        className="font-semibold text-board-text"
                       />
     
-                      <p className="mt-1 text-sm text-board-text-muted">
+                      <p className="mt-1 text-sm font-semibold text-board-text-muted">
                         예측 {bid.bid}
                         {" · "}
                         실제 {submission.tricks}
                       </p>
                     </div>
     
-                    <span className="text-xl font-bold text-board-primary">
-                      {result.roundScore > 0
-                        ? `+${result.roundScore}`
-                        : result.roundScore}
+                    <span
+                      className={`text-xl font-bold ${
+                        result.roundScore > 0
+                          ? "text-board-primary"
+                          : result.roundScore < 0
+                            ? "text-red-600"
+                            : "text-board-text-muted"
+                      }`}
+                    >
+                      {result.roundScore > 0 ? "+" : ""}
+                      {result.roundScore}점
                     </span>
                   </div>
     
-                  <div className="mt-3 flex justify-between text-sm text-board-text-muted">
+                  <div className="mt-3 flex justify-between text-sm font-semibold text-board-text-muted">
                     <span>
-                      예측 점수 {result.bidScore}
+                      예측 점수{" "}
+                      <strong className="font-semibold text-board-text">
+                        {result.bidScore}
+                      </strong>
                     </span>
-    
+                  
                     <span>
-                      보너스 {result.totalBonus}
+                      보너스{" "}
+                      <strong className="font-semibold text-board-text">
+                        {result.totalBonus}
+                      </strong>
                     </span>
                   </div>
                 </div>
