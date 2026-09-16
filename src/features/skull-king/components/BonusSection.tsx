@@ -28,7 +28,7 @@ export default function BonusSection({
       <section className="flex flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
         <h4 className="text-base font-semibold">14 카드</h4>
         <NumberSelector
-          label="일반색 14"
+          label="일반색 14 (+10점)"
           value={value.standardFourteensCount}
           max={MAX_STANDARD_FOURTEENS}
           onChange={(standardFourteensCount) =>
@@ -41,7 +41,7 @@ export default function BonusSection({
           readOnly={readOnly}
         />
         <div>
-          <p className="mb-2 text-base font-semibold">검은색 14</p>
+          <p className="mb-2 text-base font-semibold">검은색 14 (+20점)</p>
           <BinarySelector
             value={value.blackFourteenCaptured}
             onChange={(blackFourteenCaptured) =>
@@ -59,7 +59,7 @@ export default function BonusSection({
       <section className="flex flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
         <h4 className="text-base font-semibold">특수 포획</h4>
         <NumberSelector
-          label="해적 → 인어"
+          label="해적으로 잡은 인어 (+20점)"
           value={value.mermaidsCapturedByPirate}
           max={MAX_MERMAIDS_CAPTURED_BY_PIRATE}
           onChange={(mermaidsCapturedByPirate) =>
@@ -72,7 +72,7 @@ export default function BonusSection({
           readOnly={readOnly}
         />
         <NumberSelector
-          label="스컬 킹 → 해적"
+          label="스컬킹으로 잡은 해적 (+30점)"
           value={value.piratesCapturedBySkullKing}
           max={MAX_PIRATES_CAPTURED_BY_SKULL_KING}
           onChange={(piratesCapturedBySkullKing) =>
@@ -85,7 +85,7 @@ export default function BonusSection({
           readOnly={readOnly}
         />
         <div>
-          <p className="mb-2 text-base font-semibold">인어 → 스컬 킹</p>
+          <p className="mb-2 text-base font-semibold">인어로 잡은 스컬킹 (+40점)</p>
           <BinarySelector
             value={value.skullKingCapturedByMermaid}
             onChange={(skullKingCapturedByMermaid) =>

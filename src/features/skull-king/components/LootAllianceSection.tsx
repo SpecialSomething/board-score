@@ -121,7 +121,7 @@ export default function LootAllianceSection({
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-board-border bg-board-surface p-3">
       <div>
-        <h4 className="text-base font-semibold">약탈품 동맹</h4>
+        <h4 className="text-base font-semibold">약탈품 동맹 (+20점)</h4>
         <p className="mt-1 text-sm text-board-muted">
           약탈품 카드를 함께 획득한 플레이어를 선택하세요.
         </p>

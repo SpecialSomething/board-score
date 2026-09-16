@@ -1321,7 +1321,7 @@ export default function SkullKingMultiplayerPlayPage() {
 
   if (!isSessionLoaded) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-4">
+      <main className="mx-auto flex min-h-screen w-full max-w-[393px] items-center justify-center px-4">
         <p className="text-sm text-board-text-muted">
           세션을 확인하고 있습니다.
         </p>
@@ -1334,7 +1334,7 @@ export default function SkullKingMultiplayerPlayPage() {
     session.roomId !== roomId
   ) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4">
+      <main className="mx-auto flex min-h-screen w-full max-w-[393px] flex-col items-center justify-center gap-4 px-4">
         <p className="text-center text-board-text">
           이 방에 참가한 기록을 찾을 수 없습니다.
         </p>
@@ -1356,7 +1356,7 @@ export default function SkullKingMultiplayerPlayPage() {
 
   if (isLoading) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-4">
+      <main className="mx-auto flex min-h-screen w-full max-w-[393px] items-center justify-center px-4">
         <p className="text-sm text-board-text-muted">
           게임 정보를 불러오고 있습니다.
         </p>
@@ -1366,7 +1366,7 @@ export default function SkullKingMultiplayerPlayPage() {
 
   if (!room) {
     return (
-      <main className="mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center gap-4 px-4">
+      <main className="mx-auto flex min-h-screen w-full max-w-[393px] flex-col items-center justify-center gap-4 px-4">
         <p className="text-board-text">
           방 정보를 찾을 수 없습니다.
         </p>
@@ -1407,7 +1407,7 @@ export default function SkullKingMultiplayerPlayPage() {
     currentRoundResult
   ) {
         return (
-      <main className="mx-auto min-h-screen w-full max-w-md px-4 py-8">
+      <main className="mx-auto min-h-screen w-full max-w-[393px] px-4 py-8">
         <header>
           <p className="text-sm font-semibold">
             Round {room.currentRound}
@@ -1517,7 +1517,7 @@ export default function SkullKingMultiplayerPlayPage() {
 
   if (room.status === "scoring") {
     return (
-      <main className="mx-auto min-h-screen w-full max-w-md px-4 py-8">
+      <main className="mx-auto min-h-screen w-full max-w-[393px] px-6 py-8">
         <header>
           <p className="text-sm font-semibold">
             Round {room.currentRound}
@@ -1590,26 +1590,6 @@ export default function SkullKingMultiplayerPlayPage() {
             />
           </div>
 
-          {myEstimatedScore !== null && (
-            <div className="mt-3 flex items-center justify-between py-2">
-              <span className="font-semibold text-gray-700">
-                예상 점수
-              </span>
-            
-              <strong
-                className={`text-lg font-bold ${
-                  myEstimatedScore > 0
-                    ? "text-board-primary"
-                    : myEstimatedScore < 0
-                      ? "text-red-600"
-                      : "text-board-muted"
-                }`}
-              >
-                {myEstimatedScore > 0 ? "+" : ""}
-                {myEstimatedScore}점
-              </strong>
-            </div>
-                )}
         </section>
   
         <section className="mt-5 rounded-2xl border border-board-border bg-white p-5">
@@ -1639,6 +1619,27 @@ export default function SkullKingMultiplayerPlayPage() {
               readOnly={isRoundReady}
             />
           </div>
+
+          {myEstimatedScore !== null && (
+            <div className="mt-3 flex items-center justify-between py-2">
+              <span className="font-semibold text-gray-700">
+                예상 점수
+              </span>
+            
+              <strong
+                className={`text-lg font-bold ${
+                  myEstimatedScore > 0
+                    ? "text-board-primary"
+                    : myEstimatedScore < 0
+                      ? "text-red-600"
+                      : "text-board-muted"
+                }`}
+              >
+                {myEstimatedScore > 0 ? "+" : ""}
+                {myEstimatedScore}점
+              </strong>
+            </div>
+          )}
   
           <button
             type="button"
@@ -1755,7 +1756,7 @@ export default function SkullKingMultiplayerPlayPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-md px-4 py-8">
+    <main className="mx-auto min-h-screen w-full max-w-[393px] px-6 py-8">
       <header>
         <p className="text-sm font-semibold">
           Round {room.currentRound}
