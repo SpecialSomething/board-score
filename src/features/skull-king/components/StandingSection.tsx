@@ -54,7 +54,15 @@ export default function StandingsSection({
                 </span>
               </div>
 
-              <strong className="shrink-0 text-board-text">
+              <strong
+                className={`shrink-0 font-bold ${
+                  standing.totalScore > 0
+                    ? "text-board-primary"
+                    : standing.totalScore < 0
+                      ? "text-red-600"
+                      : "text-board-text-muted"
+                }`}
+              >
                 {formatScore(
                   standing.totalScore,
                 )}

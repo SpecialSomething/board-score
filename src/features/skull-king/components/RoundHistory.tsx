@@ -59,14 +59,24 @@ export default function RoundHistory({
                 <th className="whitespace-nowrap border-b border-board-border p-2 text-left font-medium">
                   {result.round}
                 </th>
-                {players.map((player) => (
-                  <td
-                    key={player.id}
-                    className="whitespace-nowrap border-b border-board-border p-2 text-right"
-                  >
-                    {formatScore(getRoundScore(result, player.id))}점
-                  </td>
-                ))}
+                {players.map((player) => {
+                  const score = getRoundScore(result, player.id);
+                
+                  return (
+                    <td
+                      key={player.id}
+                      className={`whitespace-nowrap border-b border-board-border p-2 text-right font-semibold ${
+                        score > 0
+                          ? "text-board-primary"
+                          : score < 0
+                            ? "text-red-600"
+                            : "text-board-text-muted"
+                      }`}
+                    >
+                      {formatScore(score)}점
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -76,14 +86,24 @@ export default function RoundHistory({
               <th className="whitespace-nowrap p-2 text-left font-semibold">
                 Total
               </th>
-              {players.map((player) => (
-                <td
-                  key={player.id}
-                  className="whitespace-nowrap p-2 text-right font-semibold"
-                >
-                  {formatScore(getTotalScore(player.id))}점
-                </td>
-              ))}
+              {players.map((player) => {
+                const totalScore = getTotalScore(player.id);
+              
+                return (
+                  <td
+                    key={player.id}
+                    className={`whitespace-nowrap p-2 text-right font-semibold ${
+                      totalScore > 0
+                        ? "text-board-primary"
+                        : totalScore < 0
+                          ? "text-red-600"
+                          : "text-board-text-muted"
+                    }`}
+                  >
+                    {formatScore(totalScore)}점
+                  </td>
+                );
+              })}
             </tr>
           </tfoot>
         </table>
